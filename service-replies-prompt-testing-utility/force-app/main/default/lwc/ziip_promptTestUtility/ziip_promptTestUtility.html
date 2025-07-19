@@ -1,0 +1,321 @@
+<template>
+    <div class="slds-var-p-around_medium">
+        
+        <!-- Step 1: Template Selection -->
+        <div if:true={showTemplateSelection}>
+            <lightning-card title="Step 1: Select Prompt Templates" icon-name="standard:prompt">
+                <div class="slds-var-p-horizontal_medium">
+                    
+                    <!-- Selection Status -->
+                    <div class="slds-grid slds-gutters slds-var-m-bottom_medium">
+                        <div class="slds-col slds-size_1-of-2">
+                            <div class="slds-box slds-theme_shade slds-text-align_center">
+                                <h3 class="slds-text-heading_small">Contextual Service Reply Template</h3>
+                                <p class="slds-text-body_regular">
+                                    <template if:true={selectedContextualTemplate}>
+                                        <lightning-badge label={selectedContextualTemplate.Name} variant="success"></lightning-badge>
+                                    </template>
+                                    <template if:false={selectedContextualTemplate}>
+                                        <lightning-badge label="Not Selected" variant="lightest"></lightning-badge>
+                                    </template>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <div class="slds-box slds-theme_shade slds-text-align_center">
+                                <h3 class="slds-text-heading_small">Grounded Service Reply Template</h3>
+                                <p class="slds-text-body_regular">
+                                    <template if:true={selectedGroundedTemplate}>
+                                        <lightning-badge label={selectedGroundedTemplate.Name} variant="success"></lightning-badge>
+                                    </template>
+                                    <template if:false={selectedGroundedTemplate}>
+                                        <lightning-badge label="Not Selected" variant="lightest"></lightning-badge>
+                                    </template>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Template Count Display -->
+                    <div class="slds-var-m-bottom_small">
+                        <p class="slds-text-body_small slds-text-color_weak">
+                            Showing page {templateCurrentPage} of {templateTotalPages} | {templateTotalCount} templates total
+                        </p>
+                    </div>
+
+                    <!-- Template Table -->
+                    <div class="slds-var-m-bottom_medium">
+                        <lightning-datatable
+                            key-field="Id"
+                            data={promptTemplates}
+                            columns={templateColumns}
+                            onrowaction={handleTemplateAction}
+                            is-loading={isLoadingTemplates}>
+                        </lightning-datatable>
+                    </div>
+
+                    <!-- Template Pagination Controls -->
+                    <div class="slds-grid slds-grid_align-center slds-var-m-bottom_medium" if:true={templateTotalPages}>
+                        <div class="slds-grid slds-grid_vertical-align-center">
+                            <lightning-button-icon
+                                icon-name="utility:chevronleft"
+                                variant="border-filled"
+                                alternative-text="First Page"
+                                title="First Page"
+                                onclick={handleTemplateFirstPage}
+                                class="slds-var-m-right_xx-small">
+                            </lightning-button-icon>
+                            
+                            <lightning-button-icon
+                                icon-name="utility:back"
+                                variant="border-filled"
+                                alternative-text="Previous Page"
+                                title="Previous Page"
+                                onclick={handleTemplatePreviousPage}
+                                class="slds-var-m-right_small">
+                            </lightning-button-icon>
+                            
+                            <span class="slds-var-m-horizontal_small slds-text-body_small">
+                                Page {templateCurrentPage} of {templateTotalPages}
+                            </span>
+                            
+                            <lightning-button-icon
+                                icon-name="utility:forward"
+                                variant="border-filled"
+                                alternative-text="Next Page"
+                                title="Next Page"
+                                onclick={handleTemplateNextPage}
+                                class="slds-var-m-left_small">
+                            </lightning-button-icon>
+                            
+                            <lightning-button-icon
+                                icon-name="utility:chevronright"
+                                variant="border-filled"
+                                alternative-text="Last Page"
+                                title="Last Page"
+                                onclick={handleTemplateLastPage}
+                                class="slds-var-m-left_xx-small">
+                            </lightning-button-icon>
+                        </div>
+                    </div>
+
+                    <!-- Continue Button -->
+                    <div class="slds-text-align_center">
+                        <lightning-button
+                            variant="brand"
+                            label="Continue to Session Selection"
+                            onclick={handleContinueToSessions}
+                            disabled={continueDisabled}>
+                        </lightning-button>
+                    </div>
+                </div>
+            </lightning-card>
+        </div>
+
+        <!-- Step 2: Session Selection -->
+        <div if:true={showSessionSelection}>
+            <lightning-card title="Step 2: Select Messaging Sessions" icon-name="action:new_custom3">
+                
+                <!-- Back to Templates Button -->
+                <div class="slds-var-m-around_medium">
+                    <lightning-button
+                        label="← Back to Template Selection"
+                        variant="neutral"
+                        onclick={handleBackToTemplates}
+                        class="slds-var-m-bottom_medium">
+                    </lightning-button>
+                </div>
+
+                <!-- Selected Templates Summary (Compact) -->
+                <div class="slds-var-m-around_medium">
+                    <div class="slds-box slds-theme_shade">
+                        <p class="slds-text-body_small">
+                            <strong>Selected Templates:</strong><br/>
+                            Contextual: {selectedContextualTemplate.Name}<br/>
+                            Grounded: {selectedGroundedTemplate.Name}
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Loading Spinner -->
+                <template if:true={isLoadingSessions}>
+                    <div class="slds-var-m-around_large slds-text-align_center">
+                        <lightning-spinner 
+                            alternative-text="Loading messaging sessions..." 
+                            size="large">
+                        </lightning-spinner>
+                        <div class="slds-var-m-top_small">
+                            <p class="slds-text-body_regular">Loading messaging sessions and transcripts...</p>
+                            <p class="slds-text-body_small slds-text-color_weak">This may take a moment as we fetch conversation data.</p>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Session Selection Content -->
+                <template if:false={isLoadingSessions}>
+                    <!-- Filter Section -->
+                    <div class="slds-var-m-around_medium">
+                        <div class="slds-card">
+                            <div class="slds-card__header">
+                                <h2 class="slds-card__header-title">
+                                    <lightning-icon icon-name="utility:filter" size="small" class="slds-var-m-right_x-small"></lightning-icon>
+                                    Filters
+                                </h2>
+                            </div>
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-grid slds-gutters slds-wrap">
+                                    <!-- Date Range Filters -->
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                        <lightning-input
+                                            type="date"
+                                            label="Start Date"
+                                            value={startDate}
+                                            onchange={handleStartDateChange}>
+                                        </lightning-input>
+                                    </div>
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                        <lightning-input
+                                            type="date"
+                                            label="End Date"
+                                            value={endDate}
+                                            onchange={handleEndDateChange}>
+                                        </lightning-input>
+                                    </div>
+                                    
+                                    <!-- Session Name Filter -->
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                        <lightning-input
+                                            type="text"
+                                            label="Session Name"
+                                            placeholder="Enter session name"
+                                            value={sessionName}
+                                            onchange={handleSessionNameChange}>
+                                        </lightning-input>
+                                    </div>
+                                    
+                                    <!-- Status Filter -->
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                        <lightning-combobox
+                                            label="Status"
+                                            value={selectedStatus}
+                                            placeholder="Select status"
+                                            options={statusOptions}
+                                            onchange={handleStatusChange}>
+                                        </lightning-combobox>
+                                    </div>
+                                </div>
+                                
+                                <!-- Filter Action Buttons -->
+                                <div class="slds-var-m-top_medium">
+                                    <lightning-button-group>
+                                        <lightning-button
+                                            label="Apply Filters"
+                                            variant="brand"
+                                            onclick={handleApplyFilters}>
+                                        </lightning-button>
+                                        <lightning-button
+                                            label="Clear Filters"
+                                            variant="neutral"
+                                            onclick={handleClearFilters}>
+                                        </lightning-button>
+                                    </lightning-button-group>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Search -->
+                    <div class="slds-var-m-around_medium">
+                        <lightning-input
+                            type="text"
+                            label="Quick Search Messaging Session (Current Page)"
+                            placeholder="Search current page results"
+                            value={searchKey}
+                            onchange={handleSearch}>
+                        </lightning-input>
+                    </div>
+
+                    <!-- Data Table with Limited Height -->
+                    <div class="slds-var-m-around_medium">
+                        <div style="height: 400px; overflow-y: auto;">
+                            <lightning-datatable
+                                key-field="id"
+                                data={filteredSessions}
+                                columns={sessionColumns}
+                                onrowselection={handleRowSelection}
+                                max-row-selection="200"
+                                show-row-number-column>
+                            </lightning-datatable>
+                        </div>
+                    </div>
+
+                    <!-- Pagination Controls -->
+                    <template if:true={showPagination}>
+                        <div class="slds-var-m-around_medium">
+                            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                <!-- Page info -->
+                                <div class="slds-col">
+                                    <p class="slds-text-body_small slds-text-color_weak">
+                                        Showing {currentPageInfo} records
+                                    </p>
+                                </div>
+                                
+                                <!-- Navigation buttons -->
+                                <div class="slds-col slds-no-flex">
+                                    <lightning-button-group>
+                                        <lightning-button
+                                            label="First"
+                                            variant="neutral"
+                                            onclick={handleFirstPage}>
+                                        </lightning-button>
+                                        <lightning-button
+                                            label="Previous"
+                                            variant="neutral"
+                                            onclick={handlePreviousPage}>
+                                        </lightning-button>
+                                        <lightning-button
+                                            label="Next"
+                                            variant="neutral"
+                                            onclick={handleNextPage}>
+                                        </lightning-button>
+                                        <lightning-button
+                                            label="Last"
+                                            variant="neutral"
+                                            onclick={handleLastPage}>
+                                        </lightning-button>
+                                    </lightning-button-group>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Action Section -->
+                    <div class="slds-var-m-around_medium">
+                        <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                            <div class="slds-col">
+                                <p class="slds-text-body_small slds-text-color_weak">
+                                    <template if:true={selectedSessionIds.length}>
+                                        {selectedSessionIds.length} session(s) selected - This will create test records for each customer utterance in the selected conversations.
+                                    </template>
+                                    <template if:false={selectedSessionIds.length}>
+                                        No sessions selected
+                                    </template>
+                                </p>
+                            </div>
+                            <div class="slds-col slds-no-flex">
+                                <lightning-button
+                                    label="Create Advanced Test Batch"
+                                    variant="brand"
+                                    onclick={handleCreateAdvancedTestBatch}
+                                    disabled={hasNoSelections}>
+                                </lightning-button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+            </lightning-card>
+        </div>
+
+    </div>
+</template>

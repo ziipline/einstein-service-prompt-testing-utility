@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Messaging_Session__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Messaging Session record input</description>
+    <label>Messaging Session</label>
+    <referenceTo>MessagingSession</referenceTo>
+    <relationshipLabel>Prompt Tests</relationshipLabel>
+    <relationshipName>Prompt_Tests</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>
