@@ -12,7 +12,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     
     // Input Parameter Constants
     private static final String INPUT_CONVERSATION_TRANSCRIPT = 'Input:conversation_transcript';
-    private static final String INPUT_RETRIEVER_ID_OR_NAME = 'Input:retrieverIdOrName';
+    private static final String INPUT_RETRIEVER_ID_OR_NAME = 'Input:RetrieverIdOrName';
     private static final String INPUT_SEARCH_QUERY = 'Input:search_query';
     private static final String INPUT_MESSAGING_SESSION = 'Input:MessagingSession';
     
@@ -486,7 +486,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 ConnectApi.WrappedValue retrieverIdOrNameValue = new ConnectApi.WrappedValue();
                 retrieverIdOrNameValue.value = retrieverId;
                 inputParams.put(INPUT_RETRIEVER_ID_OR_NAME, retrieverIdOrNameValue);
-                System.debug('Retriever ID set: ' + retrieverId);
+                System.debug(INPUT_RETRIEVER_ID_OR_NAME + ': ' + retrieverId);
                 
                 // Add search query (required for grounded template, even if empty)
                 ConnectApi.WrappedValue searchQueryInputValue = new ConnectApi.WrappedValue();
