@@ -1,0 +1,184 @@
+<template>
+    
+    <lightning-card title="Prompt Testing Utility - Test Messaging Sessions" icon-name="action:new_custom3">
+        
+        <!-- Loading Spinner -->
+        <template if:true={isLoading}>
+            <div class="slds-var-m-around_large slds-text-align_center">
+                <lightning-spinner 
+                    alternative-text="Loading messaging sessions..." 
+                    size="large">
+                </lightning-spinner>
+                <div class="slds-var-m-top_small">
+                    <p class="slds-text-body_regular">Loading messaging sessions and transcripts...</p>
+                    <p class="slds-text-body_small slds-text-color_weak">This may take a moment as we fetch conversation data.</p>
+                </div>
+            </div>
+        </template>
+
+        <!-- Main Content -->
+        <template if:false={isLoading}>
+            <!-- Filter Section -->
+            <div class="slds-var-m-around_medium">
+                <div class="slds-card">
+                    <div class="slds-card__header">
+                        <h2 class="slds-card__header-title">
+                            <lightning-icon icon-name="utility:filter" size="small" class="slds-var-m-right_x-small"></lightning-icon>
+                            Filters
+                        </h2>
+                    </div>
+                    <div class="slds-card__body slds-card__body_inner">
+                        <div class="slds-grid slds-gutters slds-wrap">
+                            <!-- Date Range Filters -->
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                <lightning-input
+                                    type="date"
+                                    label="Start Date"
+                                    value={startDate}
+                                    onchange={handleStartDateChange}>
+                                </lightning-input>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                <lightning-input
+                                    type="date"
+                                    label="End Date"
+                                    value={endDate}
+                                    onchange={handleEndDateChange}>
+                                </lightning-input>
+                            </div>
+                            
+                            <!-- Session Name Filter -->
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                <lightning-input
+                                    type="text"
+                                    label="Session Name"
+                                    placeholder="Enter session name"
+                                    value={sessionName}
+                                    onchange={handleSessionNameChange}>
+                                </lightning-input>
+                            </div>
+                            
+                            <!-- Status Filter -->
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                <lightning-combobox
+                                    label="Status"
+                                    value={selectedStatus}
+                                    placeholder="Select status"
+                                    options={statusOptions}
+                                    onchange={handleStatusChange}>
+                                </lightning-combobox>
+                            </div>
+                        </div>
+                        
+                        <!-- Filter Action Buttons -->
+                        <div class="slds-var-m-top_medium">
+                            <lightning-button-group>
+                                <lightning-button
+                                    label="Apply Filters"
+                                    variant="brand"
+                                    onclick={handleApplyFilters}>
+                                </lightning-button>
+                                <lightning-button
+                                    label="Clear Filters"
+                                    variant="neutral"
+                                    onclick={handleClearFilters}>
+                                </lightning-button>
+                            </lightning-button-group>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Search -->
+            <div class="slds-var-m-around_medium">
+                <lightning-input
+                    type="text"
+                    label="Quick Search Messaging Session (Current Page)"
+                    placeholder="Search current page results"
+                    value={searchKey}
+                    onchange={handleSearch}>
+                </lightning-input>
+            </div>
+
+            <!-- Data Table with Limited Height -->
+            <div class="slds-var-m-around_medium">
+                <div style="height: 400px; overflow-y: auto;">
+                    <lightning-datatable
+                        key-field="id"
+                        data={filteredSessions}
+                        columns={columns}
+                        onrowselection={handleRowSelection}
+                        max-row-selection="200"
+                        show-row-number-column>
+                    </lightning-datatable>
+                </div>
+            </div>
+
+            <!-- Pagination Controls -->
+            <template if:true={showPagination}>
+                <div class="slds-var-m-around_medium">
+                    <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                        <!-- Page info -->
+                        <div class="slds-col">
+                            <p class="slds-text-body_small slds-text-color_weak">
+                                Showing {currentPageInfo} records
+                            </p>
+                        </div>
+                        
+                        <!-- Navigation buttons -->
+                        <div class="slds-col slds-no-flex">
+                            <lightning-button-group>
+                                <lightning-button
+                                    label="First"
+                                    variant="neutral"
+                                    onclick={handleFirstPage}>
+                                </lightning-button>
+                                <lightning-button
+                                    label="Previous"
+                                    variant="neutral"
+                                    onclick={handlePreviousPage}>
+                                </lightning-button>
+                                <lightning-button
+                                    label="Next"
+                                    variant="neutral"
+                                    onclick={handleNextPage}>
+                                </lightning-button>
+                                <lightning-button
+                                    label="Last"
+                                    variant="neutral"
+                                    onclick={handleLastPage}>
+                                </lightning-button>
+                            </lightning-button-group>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Action Section -->
+            <div class="slds-var-m-around_medium">
+                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                    <div class="slds-col">
+                        <p class="slds-text-body_small slds-text-color_weak">
+                            <template if:true={selectedSessionIds.length}>
+                                {selectedSessionIds.length} session(s) selected
+                            </template>
+                            <template if:false={selectedSessionIds.length}>
+                                No sessions selected
+                            </template>
+                        </p>
+                    </div>
+                    <div class="slds-col slds-no-flex">
+                        <lightning-button
+                            label="Create Test Batch"
+                            variant="brand"
+                            onclick={handleCreateTestBatch}
+                            disabled={hasNoSelections}>
+                        </lightning-button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+    </lightning-card>
+
+</template>
