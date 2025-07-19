@@ -73,6 +73,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         return Database.getQueryLocator([
             SELECT Id, Prompt_Test_Batch__c, Messaging_Session__c, Status__c, 
                    Transcript__c, Contextual_Service_Replies_Result__c, Grounded_Service_Replies_Result__c,
+                   Customer_Utterance__c, Utterance_Sequence__c,
                    Prompt_Test_Batch__r.Context_Template_Id__c, 
                    Prompt_Test_Batch__r.Grounded_Template_Id__c
             FROM Prompt_Test__c 
@@ -138,7 +139,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
      */
     private void setTestFailed(Prompt_Test__c test, String errorMessage) {
         test.Status__c = STATUS_FAILED;
-        test.Contextual_Service_Replies_Result__c = 'Error: ' + errorMessage;
+        test.Result__c = 'Error: ' + errorMessage;
     }
     
     /**
@@ -194,21 +195,31 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     
     /**
      * @description Processes the grounded template with search query
+     * Only executes if context template returned a valid search query (not blank and not 'none')
      * @param test Prompt_Test__c record to process
      * @param transcript Conversation transcript
      * @param searchQuery Search query extracted from context template
      */
     private void processGroundedTemplate(Prompt_Test__c test, String transcript, String searchQuery) {
         if (String.isNotBlank(test.Prompt_Test_Batch__r.Grounded_Template_Id__c)) {
-            String groundedResult = executeEinsteinPrompt(
-                test.Prompt_Test_Batch__r.Grounded_Template_Id__c,
-                transcript,
-                searchQuery,
-                test.Messaging_Session__c,
-                DEFAULT_RETRIEVER_ID
-            );
-            
-            test.Grounded_Service_Replies_Result__c = formatGroundedResult(groundedResult);
+            // Only process grounded template if context template returned a valid search query
+            // Skip if blank/null OR if explicitly 'none'
+            if (String.isNotBlank(searchQuery) && searchQuery != 'none') {
+                String groundedResult = executeEinsteinPrompt(
+                    test.Prompt_Test_Batch__r.Grounded_Template_Id__c,
+                    transcript,
+                    searchQuery,
+                    test.Messaging_Session__c,
+                    DEFAULT_RETRIEVER_ID
+                );
+                
+                test.Grounded_Service_Replies_Result__c = formatGroundedResult(groundedResult);
+                System.debug('Grounded template processed with search query: ' + searchQuery);
+            } else {
+                String skipReason = String.isBlank(searchQuery) ? 'empty/blank' : '"' + searchQuery + '"';
+                test.Grounded_Service_Replies_Result__c = 'Grounded template skipped: Context template returned no valid search query (result was ' + skipReason + ')';
+                System.debug('Grounded template skipped: Context template returned ' + skipReason + ' search query');
+            }
         }
     }
     
@@ -386,7 +397,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     /**
      * @description Extracts search query from context template result
      * @param contextResult Raw JSON result from context template
-     * @return String search query for use in grounded template
+     * @return String search query for use in grounded template (preserves 'none' value)
      */
     private String extractSearchQueryFromContextResult(String contextResult) {
         try {
@@ -400,11 +411,8 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             if (resultMap.containsKey(JSON_SEARCH_QUERY)) {
                 String searchQuery = String.valueOf(resultMap.get(JSON_SEARCH_QUERY));
                 
-                // If search_query is "none" or "null", return empty string
-                if (searchQuery == 'none' || searchQuery == 'null') {
-                    return '';
-                }
-                
+                // Return the actual search query value including 'none'
+                // The calling method will decide how to handle it
                 return searchQuery;
             }
             

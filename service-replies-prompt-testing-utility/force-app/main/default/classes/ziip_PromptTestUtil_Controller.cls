@@ -282,10 +282,10 @@ public with sharing class ziip_PromptTestUtil_Controller {
     public static List<Map<String, Object>> getBatchTests(Id batchId) {
         List<Prompt_Test__c> tests = [
             SELECT Id, Messaging_Session__c, Status__c, Contextual_Service_Replies_Result__c,
-                   Grounded_Service_Replies_Result__c, CreatedDate
+                   Grounded_Service_Replies_Result__c, Customer_Utterance__c, Utterance_Sequence__c, CreatedDate
             FROM Prompt_Test__c
             WHERE Prompt_Test_Batch__c = :batchId
-            ORDER BY CreatedDate DESC
+            ORDER BY Utterance_Sequence__c ASC, CreatedDate DESC
         ];
         
         List<Map<String, Object>> testData = new List<Map<String, Object>>();
@@ -296,10 +296,395 @@ public with sharing class ziip_PromptTestUtil_Controller {
                 'Status__c' => test.Status__c,
                 'Contextual_Service_Replies_Result__c' => test.Contextual_Service_Replies_Result__c,
                 'Grounded_Service_Replies_Result__c' => test.Grounded_Service_Replies_Result__c,
+                'Customer_Utterance__c' => test.Customer_Utterance__c,
+                'Utterance_Sequence__c' => test.Utterance_Sequence__c,
                 'CreatedDate' => test.CreatedDate
             });
         }
         
         return testData;
+    }
+    
+    @AuraEnabled
+    public static Map<String, Object> getAllPromptTemplates(Integer pageSize, Integer pageNumber) {
+        try {
+            // Set default values if not provided
+            if (pageSize == null || pageSize <= 0) {
+                pageSize = 20;
+            }
+            if (pageNumber == null || pageNumber <= 0) {
+                pageNumber = 1;
+            }
+            
+            // Build endpoint with pagination parameters
+            String endpoint = 'callout:Salesforce_Connect_API/services/data/v62.0/einstein/prompt-templates';
+            endpoint += '?pageSize=' + pageSize;
+            
+            // For Connect API, we might need to handle cursor-based pagination or page tokens
+            // For now, using pageSize parameter as the API supports it
+            
+            HttpRequest req = new HttpRequest();
+            req.setEndpoint(endpoint);
+            req.setMethod('GET');
+            req.setHeader('Content-Type', 'application/json');
+            
+            Http http = new Http();
+            HttpResponse res = http.send(req);
+            
+            if (res.getStatusCode() == 200) {
+                Map<String, Object> jsonResponse = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
+                List<Map<String, Object>> templateData = new List<Map<String, Object>>();
+                
+                // Process promptRecords from response
+                if (jsonResponse.containsKey('promptRecords')) {
+                    List<Object> templates = (List<Object>) jsonResponse.get('promptRecords');
+                    
+                    for (Object templateObj : templates) {
+                        Map<String, Object> template = (Map<String, Object>) templateObj;
+                        Map<String, Object> fields = (Map<String, Object>) template.get('fields');
+                        
+                        if (fields != null) {
+                            // Extract template data from nested fields structure
+                            String templateId = extractFieldValue(fields, 'Id');
+                            if (String.isBlank(templateId)) {
+                                templateId = extractFieldValue(fields, 'DeveloperName');
+                            }
+                            
+                            String name = extractFieldValue(fields, 'MasterLabel');
+                            String templateType = extractFieldValue(fields, 'Type');
+                            String isActiveStr = extractFieldValue(fields, 'IsActive');
+                            Boolean isActive = isActiveStr == 'true' ? true : false;
+                            String status = isActive ? 'Active' : 'Inactive';
+                            String description = extractFieldValue(fields, 'Description');
+                            
+                            templateData.add(new Map<String, Object>{
+                                'Id' => templateId,
+                                'Name' => name,
+                                'TemplateType' => templateType,
+                                'Status' => status,
+                                'Description' => String.isNotBlank(description) ? description : 'No description available'
+                            });
+                        }
+                    }
+                }
+                
+                // Extract pagination metadata from Connect API response
+                Boolean hasMoreRecords = jsonResponse.containsKey('hasMoreRecords') ? 
+                    (Boolean) jsonResponse.get('hasMoreRecords') : false;
+                Integer totalPromptRecords = jsonResponse.containsKey('totalPromptRecords') ? 
+                    (Integer) jsonResponse.get('totalPromptRecords') : templateData.size();
+                
+                // Calculate pagination info
+                Integer totalPages = (Integer) Math.ceil((Decimal) totalPromptRecords / pageSize);
+                Boolean hasNext = pageNumber < totalPages;
+                Boolean hasPrevious = pageNumber > 1;
+                
+                return new Map<String, Object>{
+                    'templates' => templateData,
+                    'pagination' => new Map<String, Object>{
+                        'totalCount' => totalPromptRecords,
+                        'totalPages' => totalPages,
+                        'currentPage' => pageNumber,
+                        'pageSize' => pageSize,
+                        'hasNext' => hasNext,
+                        'hasPrevious' => hasPrevious,
+                        'hasMoreRecords' => hasMoreRecords
+                    }
+                };
+                
+            } else {
+                System.debug('Connect API Error: ' + res.getStatusCode() + ' - ' + res.getBody());
+                return new Map<String, Object>{
+                    'templates' => new List<Map<String, Object>>(),
+                    'pagination' => new Map<String, Object>{
+                        'totalCount' => 0,
+                        'totalPages' => 0,
+                        'currentPage' => 1,
+                        'pageSize' => pageSize,
+                        'hasNext' => false,
+                        'hasPrevious' => false,
+                        'hasMoreRecords' => false
+                    }
+                };
+            }
+        } catch (Exception e) {
+            System.debug('Exception in getAllPromptTemplates: ' + e.getMessage());
+            return new Map<String, Object>{
+                'templates' => new List<Map<String, Object>>(),
+                'pagination' => new Map<String, Object>{
+                    'totalCount' => 0,
+                    'totalPages' => 0,
+                    'currentPage' => 1,
+                    'pageSize' => pageSize != null ? pageSize : 20,
+                    'hasNext' => false,
+                    'hasPrevious' => false,
+                    'hasMoreRecords' => false
+                }
+            };
+        }
+    }
+    
+    @AuraEnabled
+    public static Map<String, Object> createAdvancedTestBatch(
+        List<Id> sessionIds,
+        String contextualTemplateId, 
+        String groundedTemplateId
+    ) {
+        List<Prompt_Test__c> tests = new List<Prompt_Test__c>();
+        Integer totalCustomerUtterances = 0;
+        Integer sessionsProcessed = 0;
+        Integer sessionsSkipped = 0;
+        
+        // STEP 1: Perform all callouts first (before any DML operations)
+        Map<Id, List<Map<String, Object>>> sessionUtterancesMap = new Map<Id, List<Map<String, Object>>>();
+        
+        // Get session data for all sessions
+        Map<Id, MessagingSession> sessionsById = new Map<Id, MessagingSession>([
+            SELECT Id, Name, ConversationId, Conversation.ConversationIdentifier
+            FROM MessagingSession 
+            WHERE Id IN :sessionIds
+        ]);
+        
+        // Process each messaging session to get customer utterances via callouts
+        for (Id sessionId : sessionIds) {
+            try {
+                MessagingSession session = sessionsById.get(sessionId);
+                
+                if (session == null || session.Conversation == null) {
+                    sessionsSkipped++;
+                    continue;
+                }
+                
+                String conversationIdentifier = session.Conversation.ConversationIdentifier;
+                
+                // Get the full conversation transcript
+                String fullTranscript = getConversationEntries(conversationIdentifier);
+                
+                if (String.isBlank(fullTranscript)) {
+                    sessionsSkipped++;
+                    continue;
+                }
+                
+                // Parse the transcript to find customer utterances
+                List<Map<String, Object>> customerUtterances = parseCustomerUtterances(conversationIdentifier);
+                
+                if (customerUtterances.isEmpty()) {
+                    sessionsSkipped++;
+                    continue;
+                }
+                
+                // Store utterances for this session
+                sessionUtterancesMap.put(sessionId, customerUtterances);
+                totalCustomerUtterances += customerUtterances.size();
+                sessionsProcessed++;
+                
+            } catch (Exception e) {
+                System.debug('Error processing session ' + sessionId + ': ' + e.getMessage());
+                sessionsSkipped++;
+            }
+        }
+        
+        // STEP 2: Perform all DML operations after callouts are complete
+        
+        // Create the test batch with template IDs
+        Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
+            Status__c = 'Pending',
+            Context_Template_Id__c = contextualTemplateId,
+            Grounded_Template_Id__c = groundedTemplateId
+        );
+        insert testBatch;
+        
+        // Create test records for each customer utterance
+        for (Id sessionId : sessionUtterancesMap.keySet()) {
+            List<Map<String, Object>> customerUtterances = sessionUtterancesMap.get(sessionId);
+            Integer utteranceSequence = 1;
+            
+            for (Map<String, Object> utterance : customerUtterances) {
+                String customerMessage = (String) utterance.get('message');
+                String cumulativeTranscript = (String) utterance.get('cumulativeTranscript');
+                
+                tests.add(new Prompt_Test__c(
+                    Prompt_Test_Batch__c = testBatch.Id,
+                    Messaging_Session__c = sessionId,
+                    Status__c = 'Pending',
+                    Customer_Utterance__c = customerMessage,
+                    Utterance_Sequence__c = utteranceSequence,
+                    Transcript__c = cumulativeTranscript
+                ));
+                
+                utteranceSequence++;
+            }
+        }
+        
+        // Insert all test records
+        if (!tests.isEmpty()) {
+            insert tests;
+        }
+        
+        return new Map<String, Object>{
+            'batchId' => testBatch.Id,
+            'testRecordsCreated' => tests.size(),
+            'sessionsProcessed' => sessionsProcessed,
+            'sessionsSkipped' => sessionsSkipped,
+            'totalCustomerUtterances' => totalCustomerUtterances
+        };
+    }
+    
+    private static List<Map<String, Object>> parseCustomerUtterances(String conversationIdentifier) {
+        List<Map<String, Object>> customerUtterances = new List<Map<String, Object>>();
+        
+        try {
+            System.debug('=== parseCustomerUtterances DEBUG START ===');
+            System.debug('Conversation Identifier: ' + conversationIdentifier);
+            
+            String endpoint = 'callout:Salesforce_Connect_API/services/data/v62.0/connect/conversation/' + conversationIdentifier + '/entries';
+            
+            HttpRequest req = new HttpRequest();
+            req.setEndpoint(endpoint);
+            req.setMethod('GET');
+            req.setHeader('Content-Type', 'application/json');
+            
+            Http http = new Http();
+            HttpResponse res = http.send(req);
+            
+            if (res.getStatusCode() == 200) {
+                String responseBody = res.getBody();
+                System.debug('Raw response body: ' + responseBody);
+                
+                Map<String, Object> jsonResponse = (Map<String, Object>) JSON.deserializeUntyped(responseBody);
+                
+                if (jsonResponse.containsKey('conversationEntries')) {
+                    List<Object> entries = (List<Object>) jsonResponse.get('conversationEntries');
+                    System.debug('Total conversation entries found: ' + (entries != null ? entries.size() : 0));
+                    
+                    if (entries != null && !entries.isEmpty()) {
+                        // Reverse entries to get chronological order (oldest first)
+                        List<Object> chronologicalEntries = new List<Object>();
+                        for (Integer i = entries.size() - 1; i >= 0; i--) {
+                            chronologicalEntries.add(entries[i]);
+                        }
+                        
+                        List<String> cumulativeEntries = new List<String>();
+                        Integer entryIndex = 0;
+                        
+                        // Process each entry to build cumulative transcript
+                        for (Object entryObj : chronologicalEntries) {
+                            Map<String, Object> entry = (Map<String, Object>) entryObj;
+                            System.debug('Processing entry #' + entryIndex + ': ' + entry);
+                            
+                            String message = (String) entry.get('messageText');
+                            if (String.isBlank(message)) {
+                                System.debug('Skipping entry #' + entryIndex + ' - no message text');
+                                entryIndex++;
+                                continue;
+                            }
+                            
+                            // Decode HTML entities
+                            message = message.replace('&#39;', '\'').replace('&quot;', '"').replace('&amp;', '&');
+                            
+                            // Extract timestamp
+                            Long clientTimestamp = (Long) entry.get('clientTimestamp');
+                            String formattedTimestamp = '';
+                            if (clientTimestamp != null) {
+                                DateTime dt = DateTime.newInstance(clientTimestamp);
+                                formattedTimestamp = dt.format('MM/dd/yyyy HH:mm:ss');
+                            }
+                            
+                            // Extract sender information with detailed logging
+                            String senderRole = '';
+                            Map<String, Object> sender = (Map<String, Object>) entry.get('sender');
+                            System.debug('Entry #' + entryIndex + ' sender object: ' + sender);
+                            
+                            if (sender != null) {
+                                senderRole = (String) sender.get('role');
+                                System.debug('Entry #' + entryIndex + ' sender role: "' + senderRole + '"');
+                                
+                                // Log all sender properties for debugging
+                                System.debug('Entry #' + entryIndex + ' sender keys: ' + sender.keySet());
+                                for (String key : sender.keySet()) {
+                                    System.debug('Entry #' + entryIndex + ' sender.' + key + ' = ' + sender.get(key));
+                                }
+                            }
+                            
+                            // Build formatted entry
+                            String formattedEntry = '';
+                            if (String.isNotBlank(formattedTimestamp)) {
+                                formattedEntry += '[' + formattedTimestamp + '] ';
+                            }
+                            
+                            // Check for customer roles with multiple variations
+                            Boolean isCustomerMessage = false;
+                            if (String.isNotBlank(senderRole)) {
+                                String normalizedRole = senderRole.toLowerCase().trim();
+                                if (normalizedRole == 'enduser' || 
+                                    normalizedRole == 'end user' || 
+                                    normalizedRole == 'customer' ||
+                                    normalizedRole == 'user' ||
+                                    normalizedRole.contains('customer') ||
+                                    normalizedRole.contains('end') && normalizedRole.contains('user')) {
+                                    isCustomerMessage = true;
+                                    formattedEntry += 'Customer: ';
+                                } else if (normalizedRole == 'chatbot' || 
+                                           normalizedRole == 'bot' || 
+                                           normalizedRole == 'ai' ||
+                                           normalizedRole.contains('bot')) {
+                                    formattedEntry += 'AI Assistant: ';
+                                } else {
+                                    formattedEntry += senderRole + ': ';
+                                }
+                            } else {
+                                formattedEntry += 'Unknown: ';
+                            }
+                            
+                            formattedEntry += message;
+                            cumulativeEntries.add(formattedEntry);
+                            
+                            System.debug('Entry #' + entryIndex + ' isCustomerMessage: ' + isCustomerMessage);
+                            
+                            // If this is a customer message, create a customer utterance record
+                            if (isCustomerMessage) {
+                                System.debug('Adding customer utterance: "' + message + '"');
+                                customerUtterances.add(new Map<String, Object>{
+                                    'message' => message,
+                                    'cumulativeTranscript' => String.join(cumulativeEntries, '\n')
+                                });
+                            }
+                            
+                            entryIndex++;
+                        }
+                        
+                        System.debug('Final customer utterances count: ' + customerUtterances.size());
+                    }
+                } else {
+                    System.debug('No conversationEntries found in response. Available keys: ' + jsonResponse.keySet());
+                }
+            } else {
+                System.debug('API call failed with status: ' + res.getStatusCode() + ', body: ' + res.getBody());
+            }
+            
+            System.debug('=== parseCustomerUtterances DEBUG END ===');
+        } catch (Exception e) {
+            System.debug('Exception in parseCustomerUtterances: ' + e.getMessage());
+            System.debug('Stack trace: ' + e.getStackTraceString());
+        }
+        
+        return customerUtterances;
+    }
+    
+    /**
+     * @description Helper method to extract field values from nested Salesforce API response structure
+     * @param fields Map containing field data with nested structure
+     * @param fieldName Name of the field to extract
+     * @return Object field value or null if not found
+     */
+    private static String extractFieldValue(Map<String, Object> fields, String fieldName) {
+        if (fields != null && fields.containsKey(fieldName)) {
+            Map<String, Object> fieldData = (Map<String, Object>) fields.get(fieldName);
+            if (fieldData != null && fieldData.containsKey('value')) {
+                Object value = fieldData.get('value');
+                return value != null ? String.valueOf(value) : null;
+            }
+        }
+        return null;
     }
 }
