@@ -9,7 +9,14 @@ A comprehensive Salesforce application for testing Einstein Service Reply prompt
 
 ## 🎯 Overview
 
-<div style="position: relative; padding-bottom: 64.82593037214886%; height: 0;"><iframe src="https://www.loom.com/embed/3568dc1586e148a6a294d5a0f3b228d8?sid=6f6211a3-d8b7-425f-861b-96691859f073" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>
+  <div>
+    <a href="https://www.loom.com/share/3568dc1586e148a6a294d5a0f3b228d8">
+      <p>Prompt Testing Utility - Watch Video</p>
+    </a>
+    <a href="https://www.loom.com/share/3568dc1586e148a6a294d5a0f3b228d8">
+      <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/3568dc1586e148a6a294d5a0f3b228d8-8fae0d4dd0a0deb8-full-play.gif">
+    </a>
+  </div>
 
 The Service Reply Prompt Testing Utility streamlines the process of evaluating Einstein Service Reply templates by:
 
