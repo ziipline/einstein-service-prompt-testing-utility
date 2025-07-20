@@ -167,7 +167,7 @@ private static final String DEFAULT_RETRIEVER_ID = 'your-retriever-id-here';
 
 ### 1. Accessing the Application
 
-Navigate to the **Prompt Test Batches** tab in your Salesforce org to access the testing utility.
+Navigate to the **Prompt Testind Utility** tab in your Salesforce org to access the testing utility.
 
 ### 2. Template Selection
 
