@@ -52,12 +52,14 @@ The Service Reply Prompt Testing Utility streamlines the process of evaluating E
 - Messaging for In-App and Web enabled
 
 ### Required Permissions
-- System Administrator or custom profile with:
-  - Apex class access
-  - Custom object permissions (Prompt_Test__c, Prompt_Test_Batch__c)
-  - Einstein Prompt Template access
-  - Connect API access
-  - Messaging Session access
+- System Administrator or the included Permission Set Group:
+  - **Ziip Prompt Testing Full Access** (recommended) - Complete administrative access
+  - Or individual permission sets:
+    - **Ziip Prompt Testing Base** - Core functionality access
+    - **Ziip Prompt Testing Admin** - Administrative capabilities
+  - Additional manual setup required:
+    - **Salesforce_Connect_API** Named Credential access
+    - Einstein Service Reply licenses
 
 ## 🛠️ Installation
 
@@ -73,9 +75,51 @@ cd service-reply-prompt-testing-utility
 # Deploy to your target org
 sfdx force:source:deploy -p force-app/main/default -u your-org-alias
 
-# Assign permission sets (if created)
-sfdx force:user:permset:assign -n YourPermissionSetName -u your-org-alias
+# Assign the Permission Set Group to users (recommended)
+sfdx force:user:permset:assign -n Ziip_Prompt_Testing_Full_Access -u your-org-alias
 ```
+
+### Permission Set Configuration
+
+The application includes a comprehensive permission structure:
+
+#### 🎯 **Option 1: Permission Set Group (Recommended)**
+Assign the **"Ziip Prompt Testing Full Access"** Permission Set Group for complete functionality:
+
+```bash
+sfdx force:user:permset:assign -n Ziip_Prompt_Testing_Full_Access -u your-org-alias
+```
+
+This Permission Set Group automatically includes:
+- **Ziip Prompt Testing Base**: Core functionality access
+- **Ziip Prompt Testing Admin**: Full administrative capabilities
+
+#### 🔧 **Option 2: Individual Permission Sets**
+For granular control, assign permission sets individually:
+
+```bash
+# Base functionality (required for all users)
+sfdx force:user:permset:assign -n Ziip_Prompt_Testing_Base -u your-org-alias
+
+# Administrative capabilities (for admin users)
+sfdx force:user:permset:assign -n Ziip_Prompt_Testing_Admin -u your-org-alias
+```
+
+**Base Permission Set includes:**
+- Read access to Prompt_Test__c and Prompt_Test_Batch__c objects
+- Access to Apex classes (ziip_PromptTestUtil_Controller, ziip_PromptTestBatch)
+- MessagingSession and MessagingEndUser read permissions
+- All custom field read permissions
+
+**Admin Permission Set includes:**
+- Full CRUD access to custom objects (Create, Read, Edit, Delete, View All, Modify All)
+- Custom tab visibility (Prompt_Test_Batch__c, Prompt_Testing_Utility)
+- All custom field edit permissions
+
+#### ⚠️ **Manual Configuration Required**
+The following must be configured manually by administrators:
+1. **Named Credential Access**: Grant users access to "Salesforce_Connect_API" Named Credential
+2. **Einstein Licenses**: Ensure users have appropriate Einstein Service Reply licenses
 
 ### 2. Configure Named Credential
 
@@ -123,7 +167,7 @@ private static final String DEFAULT_RETRIEVER_ID = 'your-retriever-id-here';
 
 ### 1. Accessing the Application
 
-Navigate to the **Prompt Test Batches** tab in your Salesforce org to access the testing utility.
+Navigate to the **Prompt Testind Utility** tab in your Salesforce org to access the testing utility.
 
 ### 2. Template Selection
 
