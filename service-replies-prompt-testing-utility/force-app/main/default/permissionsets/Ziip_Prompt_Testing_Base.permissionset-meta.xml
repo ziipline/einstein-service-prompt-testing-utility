@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Base permissions for Ziip Prompt Testing Utility - provides core functionality access</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Ziip Prompt Testing Base</label>
+    
+    <!-- Apex Class Permissions -->
+    <classAccesses>
+        <apexClass>ziip_PromptTestUtil_Controller</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ziip_PromptTestBatch</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    
+    <!-- Field Permissions for Prompt_Test__c -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Contextual_Service_Replies_Result__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Customer_Utterance__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Grounded_Service_Replies_Result__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Messaging_Session__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Prompt_Test_Batch__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Result__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Transcript__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Utterance_Sequence__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    
+    <!-- Field Permissions for Prompt_Test_Batch__c -->
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test_Batch__c.Context_Template_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test_Batch__c.End_Datetime__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test_Batch__c.Grounded_Template_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test_Batch__c.Start_Datetime__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test_Batch__c.Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    
+    <!-- Object Permissions -->
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Prompt_Test__c</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Prompt_Test_Batch__c</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>MessagingSession</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+</PermissionSet>

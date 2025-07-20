@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSetGroup xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Full access to Ziip Prompt Testing Utility - combines base functionality and admin permissions</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Ziip Prompt Testing Full Access</label>
+    <permissionSets>Ziip_Prompt_Testing_Base</permissionSets>
+    <permissionSets>Ziip_Prompt_Testing_Admin</permissionSets>
+    <status>Updated</status>
+</PermissionSetGroup>
