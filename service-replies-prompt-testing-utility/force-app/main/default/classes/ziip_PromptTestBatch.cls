@@ -4,19 +4,25 @@
  */
 public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Database.AllowsCallouts {
     
-    // Status Constants
+    // ===========================================
+    // STATUS CONSTANTS
+    // ===========================================
     private static final String STATUS_PENDING = 'Pending';
     private static final String STATUS_IN_PROGRESS = 'In Progress';
     private static final String STATUS_COMPLETED = 'Completed';
     private static final String STATUS_FAILED = 'Failed';
     
-    // Input Parameter Constants
+    // ===========================================
+    // EINSTEIN AI INPUT PARAMETER CONSTANTS
+    // ===========================================
     private static final String INPUT_CONVERSATION_TRANSCRIPT = 'Input:conversation_transcript';
     private static final String INPUT_RETRIEVER_ID_OR_NAME = 'Input:RetrieverIdOrName';
     private static final String INPUT_SEARCH_QUERY = 'Input:search_query';
     private static final String INPUT_MESSAGING_SESSION = 'Input:MessagingSession';
     
-    // JSON Field Constants
+    // ===========================================
+    // JSON RESPONSE FIELD CONSTANTS
+    // ===========================================
     private static final String JSON_SEARCH_QUERY = 'search_query';
     private static final String JSON_RECENT_SPEAKER = 'recent_speaker';
     private static final String JSON_ISSUE_ADDRESSED = 'issue_addressed_by_agent';
@@ -31,12 +37,29 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private static final String JSON_SNIPPET_START = 'snippet_starting_word_num';
     private static final String JSON_SNIPPET_END = 'snippet_ending_word_num';
     
-    // Configuration Constants
+    // ===========================================
+    // PROCESSING CONFIGURATION CONSTANTS
+    // ===========================================
     private static final Integer NUM_GENERATIONS = 1;
+    private static final Integer BATCH_SIZE_LIMIT = 200;
+    private static final Integer MAX_RETRY_ATTEMPTS = 3;
     private static final String APPLICATION_NAME = 'PromptTemplateGenerationsInvocable';
     private static final String DEFAULT_RETRIEVER_ID = '1CxHn0000008OeMKAU';
+    private static final String INVALID_SEARCH_QUERY_VALUE = 'none';
+    private static final String MESSAGING_SESSION_ID_KEY = 'id';
     
-    // Error Message Constants
+    // ===========================================
+    // FORMATTING CONSTANTS
+    // ===========================================
+    private static final String NEWLINE = '\n';
+    private static final String DOUBLE_NEWLINE = '\n\n';
+    private static final String ERROR_PREFIX = 'Error: ';
+    private static final String RAW_RESULT_PREFIX = '\n\nRaw Result:\n';
+    private static final Integer RESPONSE_COUNTER_START = 1;
+    
+    // ===========================================
+    // ERROR MESSAGE CONSTANTS
+    // ===========================================
     private static final String ERROR_TEMPLATE_IDS_NOT_CONFIGURED = 'Template IDs not configured. Please set Context Template ID and Grounded Template ID on the batch.';
     private static final String ERROR_BLANK_TEMPLATE_ID = 'Template ID cannot be blank';
     private static final String ERROR_NO_RESPONSE_GENERATED = 'No response generated from prompt template';
@@ -47,12 +70,29 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private static final String ERROR_EXECUTING_PROMPT = 'Failed to execute Einstein prompt (Template ID: ';
     private static final String ERROR_GETTING_TRANSCRIPT = 'Error getting transcript: ';
     private static final String ERROR_PARSING_JSON = 'Error parsing context result JSON: ';
+    private static final String ERROR_UPDATING_RECORDS = 'Error updating test records: ';
+    private static final String ERROR_UPDATING_BATCH_STATUS = 'Error updating batch status: ';
     
-    // Formatting Constants
-    private static final String CONTEXT_HEADER = 'CONTEXTUAL SERVICE REPLIES ANALYSIS\n===================================\n\n';
-    private static final String GROUNDED_HEADER = 'GROUNDED SERVICE REPLIES RESPONSES\n=================================\n\n';
-    private static final String RESPONSES_SECTION = 'RESPONSES:\n----------\n';
-    private static final String SOURCE_INFO_SECTION = '\nSource Information:\n';
+    // ===========================================
+    // DISPLAY FORMATTING CONSTANTS
+    // ===========================================
+    private static final String CONTEXT_HEADER = 'CONTEXTUAL SERVICE REPLIES' + DOUBLE_NEWLINE;
+    private static final String GROUNDED_HEADER = 'GROUNDED SERVICE REPLIES' + DOUBLE_NEWLINE;
+    private static final String RESPONSES_SECTION = 'RESPONSES:' + NEWLINE + '----------' + NEWLINE;
+    private static final String SOURCE_INFO_SECTION = NEWLINE + 'Source Information:' + NEWLINE;
+    private static final String RESPONSE_DELIMITER = '-----------' + NEWLINE;
+    private static final String SEARCH_QUERY_LABEL = 'Search Query: ';
+    private static final String RECENT_SPEAKER_LABEL = 'Recent Speaker: ';
+    private static final String ISSUE_ADDRESSED_LABEL = 'Issue Addressed by Agent: ';
+    private static final String RESPONSE_PREFIX = 'RESPONSE ';
+    private static final String TEXT_LABEL = 'Text: ';
+    private static final String INTENT_LABEL = 'Intent: ';
+    private static final String ARTICLE_RELEVANT_LABEL = 'Article Relevant: ';
+    private static final String SNIPPET_IDENTIFIED_LABEL = 'Snippet Identified: ';
+    private static final String RECORD_ID_LABEL = '  - Record ID: ';
+    private static final String DATA_SOURCE_LABEL = '  - Data Source: ';
+    private static final String SNIPPET_RANGE_LABEL = '  - Snippet Range: Words ';
+    private static final String TO_SEPARATOR = ' to ';
     
     private final Set<Id> batchIds;
     
@@ -139,7 +179,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
      */
     private void setTestFailed(Prompt_Test__c test, String errorMessage) {
         test.Status__c = STATUS_FAILED;
-        test.Result__c = 'Error: ' + errorMessage;
+        test.Result__c = ERROR_PREFIX + errorMessage;
     }
     
     /**
@@ -202,9 +242,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
      */
     private void processGroundedTemplate(Prompt_Test__c test, String transcript, String searchQuery) {
         if (String.isNotBlank(test.Prompt_Test_Batch__r.Grounded_Template_Id__c)) {
-            // Only process grounded template if context template returned a valid search query
-            // Skip if blank/null OR if explicitly 'none'
-            if (String.isNotBlank(searchQuery) && searchQuery != 'none') {
+            if (isValidSearchQuery(searchQuery)) {
                 String groundedResult = executeEinsteinPrompt(
                     test.Prompt_Test_Batch__r.Grounded_Template_Id__c,
                     transcript,
@@ -217,10 +255,29 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 System.debug('Grounded template processed with search query: ' + searchQuery);
             } else {
                 String skipReason = String.isBlank(searchQuery) ? 'empty/blank' : '"' + searchQuery + '"';
-                test.Grounded_Service_Replies_Result__c = 'Grounded template skipped: Context template returned no valid search query (result was ' + skipReason + ')';
+                test.Grounded_Service_Replies_Result__c = buildGroundedSkipMessage(skipReason);
                 System.debug('Grounded template skipped: Context template returned ' + skipReason + ' search query');
             }
         }
+    }
+    
+    /**
+     * @description Validates if a search query is valid for grounded template processing
+     * @param searchQuery Search query to validate
+     * @return Boolean indicating if search query is valid (not blank and not 'none')
+     */
+    private Boolean isValidSearchQuery(String searchQuery) {
+        return String.isNotBlank(searchQuery) && 
+               !searchQuery.equalsIgnoreCase(INVALID_SEARCH_QUERY_VALUE);
+    }
+    
+    /**
+     * @description Builds a skip message for grounded template processing
+     * @param skipReason Reason why the grounded template was skipped
+     * @return String formatted skip message
+     */
+    private String buildGroundedSkipMessage(String skipReason) {
+        return 'Grounded template skipped: Context template returned no valid search query (result was ' + skipReason + ')';
     }
     
     /**
@@ -232,7 +289,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             try {
                 update testsToUpdate;
             } catch (DmlException e) {
-                System.debug('Error updating test records: ' + e.getMessage());
+                System.debug(ERROR_UPDATING_RECORDS + e.getMessage());
                 throw e;
             }
         }
@@ -256,7 +313,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             try {
                 update batchesToUpdate;
             } catch (DmlException e) {
-                System.debug('Error updating batch status: ' + e.getMessage());
+                System.debug(ERROR_UPDATING_BATCH_STATUS + e.getMessage());
                 throw e;
             }
         }
@@ -339,23 +396,23 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                     if (responseObj instanceof Map<String, Object>) {
                         Map<String, Object> response = (Map<String, Object>) responseObj;
                         
-                        formatted += 'RESPONSE ' + responseCount + ':\n';
-                        formatted += '-----------\n';
+                        formatted += RESPONSE_PREFIX + responseCount + ':' + NEWLINE;
+                        formatted += RESPONSE_DELIMITER;
                         
                         if (response.containsKey(JSON_RESPONSE)) {
-                            formatted += 'Text: ' + String.valueOf(response.get(JSON_RESPONSE)) + '\n';
+                            formatted += TEXT_LABEL + String.valueOf(response.get(JSON_RESPONSE)) + NEWLINE;
                         }
                         
                         if (response.containsKey(JSON_INTENT)) {
-                            formatted += 'Intent: ' + String.valueOf(response.get(JSON_INTENT)) + '\n';
+                            formatted += INTENT_LABEL + String.valueOf(response.get(JSON_INTENT)) + NEWLINE;
                         }
                         
                         if (response.containsKey(JSON_ARTICLE_RELEVANT)) {
-                            formatted += 'Article Relevant: ' + String.valueOf(response.get(JSON_ARTICLE_RELEVANT)) + '\n';
+                            formatted += ARTICLE_RELEVANT_LABEL + String.valueOf(response.get(JSON_ARTICLE_RELEVANT)) + NEWLINE;
                         }
                         
                         if (response.containsKey(JSON_SNIPPET_IDENTIFIED)) {
-                            formatted += 'Snippet Identified: ' + String.valueOf(response.get(JSON_SNIPPET_IDENTIFIED)) + '\n';
+                            formatted += SNIPPET_IDENTIFIED_LABEL + String.valueOf(response.get(JSON_SNIPPET_IDENTIFIED)) + NEWLINE;
                         }
                         
                         // Extract source information using constants
@@ -364,23 +421,23 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                             formatted += SOURCE_INFO_SECTION;
                             
                             if (source.containsKey(JSON_SOURCE_RECORD_ID)) {
-                                formatted += '  - Record ID: ' + String.valueOf(source.get(JSON_SOURCE_RECORD_ID)) + '\n';
+                                formatted += RECORD_ID_LABEL + String.valueOf(source.get(JSON_SOURCE_RECORD_ID)) + NEWLINE;
                             }
                             
                             if (source.containsKey(JSON_DATA_SOURCE_OBJECT)) {
-                                formatted += '  - Data Source: ' + String.valueOf(source.get(JSON_DATA_SOURCE_OBJECT)) + '\n';
+                                formatted += DATA_SOURCE_LABEL + String.valueOf(source.get(JSON_DATA_SOURCE_OBJECT)) + NEWLINE;
                             }
                             
                             if (source.containsKey(JSON_SNIPPET_START) && source.containsKey(JSON_SNIPPET_END)) {
-                                formatted += '  - Snippet Range: Words ';
+                                formatted += SNIPPET_RANGE_LABEL;
                                 formatted += String.valueOf(source.get(JSON_SNIPPET_START));
-                                formatted += ' to ';
+                                formatted += TO_SEPARATOR;
                                 formatted += String.valueOf(source.get(JSON_SNIPPET_END));
-                                formatted += '\n';
+                                formatted += NEWLINE;
                             }
                         }
                         
-                        formatted += '\n';
+                        formatted += NEWLINE;
                         responseCount++;
                     }
                 }
