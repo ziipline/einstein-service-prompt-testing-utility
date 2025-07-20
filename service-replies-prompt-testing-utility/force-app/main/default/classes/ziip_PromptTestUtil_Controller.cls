@@ -239,6 +239,7 @@ public with sharing class ziip_PromptTestUtil_Controller {
         return statusOptions;
     }
 
+
     @AuraEnabled
     public static Id createTestBatch(List<Id> sessionIds) {
         Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
@@ -316,11 +317,9 @@ public with sharing class ziip_PromptTestUtil_Controller {
         try {
             System.debug('Starting getPromptTemplates - Page: ' + pageNumber + ', PageSize: ' + pageSize);
             
-            // Try different pagination approaches since offset might not work correctly
+            // Fetch all templates at once with pageLimit=200
             String endpoint = 'callout:Salesforce_Connect_API/services/data/v62.0/einstein/prompt-templates';
-            
-            // Try using 'page' parameter instead of offset (some APIs use 1-based page numbers)
-            endpoint += '?pageSize=' + pageSize + '&page=' + pageNumber;
+            endpoint += '?pageLimit=200';
             
             System.debug('HTTP API endpoint: ' + endpoint);
             
@@ -332,19 +331,18 @@ public with sharing class ziip_PromptTestUtil_Controller {
             Http http = new Http();
             HttpResponse res = http.send(req);
             
-            List<Map<String, Object>> templateData = new List<Map<String, Object>>();
-            Integer totalCount = 0;
+            List<Map<String, Object>> allTemplates = new List<Map<String, Object>>();
             
             if (res.getStatusCode() == 200) {
                 Map<String, Object> jsonResponse = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
-                System.debug('Full API Response: ' + JSON.serializePretty(jsonResponse));
+                System.debug('API Response received: ' + (jsonResponse.containsKey('promptRecords') ? ((List<Object>) jsonResponse.get('promptRecords')).size() + ' templates' : 'No promptRecords'));
                 
                 // Process promptRecords from response
                 if (jsonResponse.containsKey('promptRecords')) {
                     List<Object> templates = (List<Object>) jsonResponse.get('promptRecords');
                     
                     if (templates != null) {
-                        System.debug('Found ' + templates.size() + ' templates in this page');
+                        System.debug('Processing ' + templates.size() + ' templates from API');
                         
                         for (Object templateObj : templates) {
                             Map<String, Object> template = (Map<String, Object>) templateObj;
@@ -364,113 +362,72 @@ public with sharing class ziip_PromptTestUtil_Controller {
                                 String status = isActive ? 'Active' : 'Inactive';
                                 String description = extractFieldValue(fields, 'Description');
                                 
-                                templateData.add(new Map<String, Object>{
+                                allTemplates.add(new Map<String, Object>{
                                     'Id' => templateId,
                                     'Name' => name,
                                     'TemplateType' => currentTemplateType,
-                                    'Status' => status,
-                                    'Description' => String.isNotBlank(description) ? description : 'No description available'
+                                    'Status' => status
                                 });
                             }
                         }
                     }
                 }
                 
-                // Get total count from response
-                if (jsonResponse.containsKey('totalSize')) {
-                    totalCount = (Integer) jsonResponse.get('totalSize');
-                    System.debug('Total count from API: ' + totalCount);
-                } else {
-                    System.debug('No totalSize in response, getting count separately');
-                    totalCount = getTotalTemplateCount();
-                }
-                
             } else {
-                System.debug('HTTP API Error: ' + res.getStatusCode() + ' - ' + res.getBody());
-                
-                // If 'page' parameter fails, try with offset approach as fallback
-                String fallbackEndpoint = 'callout:Salesforce_Connect_API/services/data/v62.0/einstein/prompt-templates';
-                Integer offset = (pageNumber - 1) * pageSize;
-                fallbackEndpoint += '?pageSize=' + pageSize + '&offset=' + offset;
-                
-                System.debug('Trying fallback endpoint: ' + fallbackEndpoint);
-                
-                req.setEndpoint(fallbackEndpoint);
-                HttpResponse fallbackRes = http.send(req);
-                
-                if (fallbackRes.getStatusCode() == 200) {
-                    System.debug('Fallback endpoint worked');
-                    // Process fallback response same way as above
-                    Map<String, Object> jsonResponse = (Map<String, Object>) JSON.deserializeUntyped(fallbackRes.getBody());
-                    System.debug('Fallback API Response: ' + JSON.serializePretty(jsonResponse));
-                    
-                    if (jsonResponse.containsKey('promptRecords')) {
-                        List<Object> templates = (List<Object>) jsonResponse.get('promptRecords');
-                        
-                        if (templates != null) {
-                            for (Object templateObj : templates) {
-                                Map<String, Object> template = (Map<String, Object>) templateObj;
-                                Map<String, Object> fields = (Map<String, Object>) template.get('fields');
-                                
-                                if (fields != null) {
-                                    String templateId = extractFieldValue(fields, 'Id');
-                                    if (String.isBlank(templateId)) {
-                                        templateId = extractFieldValue(fields, 'DeveloperName');
-                                    }
-                                    
-                                    String name = extractFieldValue(fields, 'MasterLabel');
-                                    String currentTemplateType = extractFieldValue(fields, 'Type');
-                                    String isActiveStr = extractFieldValue(fields, 'IsActive');
-                                    Boolean isActive = isActiveStr == 'true' ? true : false;
-                                    String status = isActive ? 'Active' : 'Inactive';
-                                    String description = extractFieldValue(fields, 'Description');
-                                    
-                                    templateData.add(new Map<String, Object>{
-                                        'Id' => templateId,
-                                        'Name' => name,
-                                        'TemplateType' => currentTemplateType,
-                                        'Status' => status,
-                                        'Description' => String.isNotBlank(description) ? description : 'No description available'
-                                    });
-                                }
-                            }
-                        }
-                    }
-                    
-                    if (jsonResponse.containsKey('totalSize')) {
-                        totalCount = (Integer) jsonResponse.get('totalSize');
-                    } else {
-                        totalCount = getTotalTemplateCount();
-                    }
-                } else {
-                    System.debug('Both primary and fallback endpoints failed');
+                System.debug('API Error: ' + res.getStatusCode() + ' - ' + res.getBody());
+            }
+            
+            // Extract unique template types for filter options
+            Set<String> uniqueTypes = new Set<String>();
+            for (Map<String, Object> template : allTemplates) {
+                String templateTypeValue = (String) template.get('TemplateType');
+                if (String.isNotBlank(templateTypeValue)) {
+                    uniqueTypes.add(templateTypeValue);
                 }
             }
             
-            // Apply client-side filtering
-            List<Map<String, Object>> filteredTemplates = applyTemplateFilters(templateData, templateName, templateType, templateStatus);
+            // Convert to sorted list of filter options
+            List<String> sortedTypes = new List<String>(uniqueTypes);
+            sortedTypes.sort();
             
-            // Apply pagination to filtered results
+            List<Map<String, String>> templateTypeOptions = new List<Map<String, String>>();
+            templateTypeOptions.add(new Map<String, String>{
+                'label' => 'All Types',
+                'value' => ''
+            });
+            
+            for (String templateTypeValue : sortedTypes) {
+                templateTypeOptions.add(new Map<String, String>{
+                    'label' => templateTypeValue,
+                    'value' => templateTypeValue
+                });
+            }
+            
+            // Apply client-side filtering to all templates
+            List<Map<String, Object>> filteredTemplates = applyTemplateFilters(allTemplates, templateName, templateType, templateStatus);
+            
+            // Apply client-side pagination to filtered results
             Integer filteredTotalCount = filteredTemplates.size();
-            Integer offset = (pageNumber - 1) * pageSize;
-            Integer endIndex = Math.min(offset + pageSize, filteredTotalCount);
+            Integer startIndex = (pageNumber - 1) * pageSize;
+            Integer endIndex = Math.min(startIndex + pageSize, filteredTotalCount);
             
             List<Map<String, Object>> paginatedTemplates = new List<Map<String, Object>>();
-            if (offset < filteredTotalCount) {
-                for (Integer i = offset; i < endIndex; i++) {
+            if (startIndex < filteredTotalCount) {
+                for (Integer i = startIndex; i < endIndex; i++) {
                     paginatedTemplates.add(filteredTemplates[i]);
                 }
             }
             
             // Calculate pagination info based on filtered results
             Integer totalPages = pageSize > 0 ? (Integer) Math.ceil((Decimal) filteredTotalCount / pageSize) : 1;
-            Boolean hasNext = (offset + pageSize) < filteredTotalCount;
+            Boolean hasNext = (startIndex + pageSize) < filteredTotalCount;
             Boolean hasPrevious = pageNumber > 1;
             
-            System.debug('Final pagination - Page: ' + pageNumber + ', Size: ' + pageSize + ', FilteredTotal: ' + filteredTotalCount + ', HasNext: ' + hasNext + ', Templates returned: ' + paginatedTemplates.size());
+            System.debug('Client-side pagination - Total: ' + allTemplates.size() + ', Filtered: ' + filteredTotalCount + ', Page: ' + pageNumber + '/' + totalPages + ', Returned: ' + paginatedTemplates.size());
             
             return new Map<String, Object>{
                 'templates' => paginatedTemplates,
+                'templateTypeOptions' => templateTypeOptions,
                 'pagination' => new Map<String, Object>{
                     'totalCount' => filteredTotalCount,
                     'totalPages' => totalPages,
@@ -498,29 +455,6 @@ public with sharing class ziip_PromptTestUtil_Controller {
         }
     }
     
-    private static Integer getTotalTemplateCount() {
-        try {
-            String endpoint = 'callout:Salesforce_Connect_API/services/data/v62.0/einstein/prompt-templates?pageSize=1';
-            
-            HttpRequest req = new HttpRequest();
-            req.setEndpoint(endpoint);
-            req.setMethod('GET');
-            req.setHeader('Content-Type', 'application/json');
-            
-            Http http = new Http();
-            HttpResponse res = http.send(req);
-            
-            if (res.getStatusCode() == 200) {
-                Map<String, Object> jsonResponse = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
-                if (jsonResponse.containsKey('totalSize')) {
-                    return (Integer) jsonResponse.get('totalSize');
-                }
-            }
-        } catch (Exception e) {
-            System.debug('Exception getting total template count: ' + e.getMessage());
-        }
-        return 0;
-    }
     
     private static String extractFieldValue(Map<String, Object> fields, String fieldName) {
         if (fields != null && fields.containsKey(fieldName)) {

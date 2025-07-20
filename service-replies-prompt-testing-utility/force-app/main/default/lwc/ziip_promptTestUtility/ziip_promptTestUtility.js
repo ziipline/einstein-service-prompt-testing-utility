@@ -10,7 +10,6 @@ const templateColumns = [
     { label: 'Name', fieldName: 'Name', type: 'text', wrapText: true },
     { label: 'Template Type', fieldName: 'TemplateType', type: 'text' },
     { label: 'Status', fieldName: 'Status', type: 'text' },
-    { label: 'Description', fieldName: 'Description', type: 'text', wrapText: true },
     { 
         type: 'action', 
         typeAttributes: { 
@@ -48,11 +47,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
     templateNameFilter = '';
     templateTypeFilter = '';
     templateStatusFilter = '';
-    templateTypeOptions = [
-        { label: 'All Types', value: '' },
-        { label: 'Grounded', value: 'Grounded' },
-        { label: 'Standard', value: 'Standard' }
-    ];
+    templateTypeOptions = []; // Will be populated from server response
     templateStatusOptions = [
         { label: 'All Status', value: '' },
         { label: 'Active', value: 'Active' },
@@ -117,6 +112,11 @@ export default class Ziip_promptTestUtility extends LightningElement {
         .then(result => {
             this.promptTemplates = result.templates || [];
             
+            // Update template type options from server response
+            if (result.templateTypeOptions) {
+                this.templateTypeOptions = result.templateTypeOptions;
+            }
+            
             // Update pagination info
             const pagination = result.pagination;
             this.templateTotalPages = pagination.totalPages;
@@ -126,6 +126,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
             
             this.isLoadingTemplates = false;
             console.log('Templates loaded:', this.promptTemplates.length, 'templates');
+            console.log('Template type options:', this.templateTypeOptions);
             console.log('Template pagination info:', pagination);
         })
         .catch(error => {
@@ -401,6 +402,10 @@ export default class Ziip_promptTestUtility extends LightningElement {
 
     get hasNoSelections() {
         return this.selectedSessionIds.length === 0;
+    }
+
+    get isTemplateTypeFilterDisabled() {
+        return this.isLoadingTemplates || this.templateTypeOptions.length === 0;
     }
 
     // UTILITY METHODS
