@@ -72,11 +72,7 @@
         <field>Prompt_Test_Batch__c.Start_Datetime__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>Prompt_Test_Batch__c.Status__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
+    <!-- Note: Status__c is a required field and cannot be secured via permission sets -->
     
     <!-- Object Permissions (Full CRUD) -->
     <objectPermissions>

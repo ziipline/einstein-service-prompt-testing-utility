@@ -82,11 +82,7 @@
         <field>Prompt_Test_Batch__c.Start_Datetime__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Prompt_Test_Batch__c.Status__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
+    <!-- Note: Status__c is a required field and cannot be secured via permission sets -->
     
     <!-- Object Permissions -->
     <objectPermissions>
@@ -105,6 +101,15 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords>
         <object>Prompt_Test_Batch__c</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>MessagingEndUser</object>
         <viewAllRecords>false</viewAllRecords>
     </objectPermissions>
     <objectPermissions>
