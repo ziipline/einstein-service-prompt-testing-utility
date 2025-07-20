@@ -239,6 +239,7 @@ public with sharing class ziip_PromptTestUtil_Controller {
         return statusOptions;
     }
 
+
     @AuraEnabled
     public static Id createTestBatch(List<Id> sessionIds) {
         Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
@@ -306,22 +307,21 @@ public with sharing class ziip_PromptTestUtil_Controller {
     }
     
     @AuraEnabled
-    public static Map<String, Object> getAllPromptTemplates(Integer pageSize, Integer pageNumber) {
+    public static Map<String, Object> getPromptTemplates(
+        Integer pageSize, 
+        Integer pageNumber,
+        String templateName,
+        String templateType,
+        String templateStatus
+    ) {
         try {
-            // Set default values if not provided
-            if (pageSize == null || pageSize <= 0) {
-                pageSize = 20;
-            }
-            if (pageNumber == null || pageNumber <= 0) {
-                pageNumber = 1;
-            }
+            System.debug('Starting getPromptTemplates - Page: ' + pageNumber + ', PageSize: ' + pageSize);
             
-            // Build endpoint with pagination parameters
+            // Fetch all templates at once with pageLimit=200
             String endpoint = 'callout:Salesforce_Connect_API/services/data/v62.0/einstein/prompt-templates';
-            endpoint += '?pageSize=' + pageSize;
+            endpoint += '?pageLimit=200';
             
-            // For Connect API, we might need to handle cursor-based pagination or page tokens
-            // For now, using pageSize parameter as the API supports it
+            System.debug('HTTP API endpoint: ' + endpoint);
             
             HttpRequest req = new HttpRequest();
             req.setEndpoint(endpoint);
@@ -331,98 +331,185 @@ public with sharing class ziip_PromptTestUtil_Controller {
             Http http = new Http();
             HttpResponse res = http.send(req);
             
+            List<Map<String, Object>> allTemplates = new List<Map<String, Object>>();
+            
             if (res.getStatusCode() == 200) {
                 Map<String, Object> jsonResponse = (Map<String, Object>) JSON.deserializeUntyped(res.getBody());
-                List<Map<String, Object>> templateData = new List<Map<String, Object>>();
+                System.debug('API Response received: ' + (jsonResponse.containsKey('promptRecords') ? ((List<Object>) jsonResponse.get('promptRecords')).size() + ' templates' : 'No promptRecords'));
                 
                 // Process promptRecords from response
                 if (jsonResponse.containsKey('promptRecords')) {
                     List<Object> templates = (List<Object>) jsonResponse.get('promptRecords');
                     
-                    for (Object templateObj : templates) {
-                        Map<String, Object> template = (Map<String, Object>) templateObj;
-                        Map<String, Object> fields = (Map<String, Object>) template.get('fields');
+                    if (templates != null) {
+                        System.debug('Processing ' + templates.size() + ' templates from API');
                         
-                        if (fields != null) {
-                            // Extract template data from nested fields structure
-                            String templateId = extractFieldValue(fields, 'Id');
-                            if (String.isBlank(templateId)) {
-                                templateId = extractFieldValue(fields, 'DeveloperName');
+                        for (Object templateObj : templates) {
+                            Map<String, Object> template = (Map<String, Object>) templateObj;
+                            Map<String, Object> fields = (Map<String, Object>) template.get('fields');
+                            
+                            if (fields != null) {
+                                // Extract template data from nested fields structure
+                                String templateId = extractFieldValue(fields, 'Id');
+                                if (String.isBlank(templateId)) {
+                                    templateId = extractFieldValue(fields, 'DeveloperName');
+                                }
+                                
+                                String name = extractFieldValue(fields, 'MasterLabel');
+                                String currentTemplateType = extractFieldValue(fields, 'Type');
+                                String isActiveStr = extractFieldValue(fields, 'IsActive');
+                                Boolean isActive = isActiveStr == 'true' ? true : false;
+                                String status = isActive ? 'Active' : 'Inactive';
+                                String description = extractFieldValue(fields, 'Description');
+                                
+                                allTemplates.add(new Map<String, Object>{
+                                    'Id' => templateId,
+                                    'Name' => name,
+                                    'TemplateType' => currentTemplateType,
+                                    'Status' => status
+                                });
                             }
-                            
-                            String name = extractFieldValue(fields, 'MasterLabel');
-                            String templateType = extractFieldValue(fields, 'Type');
-                            String isActiveStr = extractFieldValue(fields, 'IsActive');
-                            Boolean isActive = isActiveStr == 'true' ? true : false;
-                            String status = isActive ? 'Active' : 'Inactive';
-                            String description = extractFieldValue(fields, 'Description');
-                            
-                            templateData.add(new Map<String, Object>{
-                                'Id' => templateId,
-                                'Name' => name,
-                                'TemplateType' => templateType,
-                                'Status' => status,
-                                'Description' => String.isNotBlank(description) ? description : 'No description available'
-                            });
                         }
                     }
                 }
                 
-                // Extract pagination metadata from Connect API response
-                Boolean hasMoreRecords = jsonResponse.containsKey('hasMoreRecords') ? 
-                    (Boolean) jsonResponse.get('hasMoreRecords') : false;
-                Integer totalPromptRecords = jsonResponse.containsKey('totalPromptRecords') ? 
-                    (Integer) jsonResponse.get('totalPromptRecords') : templateData.size();
-                
-                // Calculate pagination info
-                Integer totalPages = (Integer) Math.ceil((Decimal) totalPromptRecords / pageSize);
-                Boolean hasNext = pageNumber < totalPages;
-                Boolean hasPrevious = pageNumber > 1;
-                
-                return new Map<String, Object>{
-                    'templates' => templateData,
-                    'pagination' => new Map<String, Object>{
-                        'totalCount' => totalPromptRecords,
-                        'totalPages' => totalPages,
-                        'currentPage' => pageNumber,
-                        'pageSize' => pageSize,
-                        'hasNext' => hasNext,
-                        'hasPrevious' => hasPrevious,
-                        'hasMoreRecords' => hasMoreRecords
-                    }
-                };
-                
             } else {
-                System.debug('Connect API Error: ' + res.getStatusCode() + ' - ' + res.getBody());
-                return new Map<String, Object>{
-                    'templates' => new List<Map<String, Object>>(),
-                    'pagination' => new Map<String, Object>{
-                        'totalCount' => 0,
-                        'totalPages' => 0,
-                        'currentPage' => 1,
-                        'pageSize' => pageSize,
-                        'hasNext' => false,
-                        'hasPrevious' => false,
-                        'hasMoreRecords' => false
-                    }
-                };
+                System.debug('API Error: ' + res.getStatusCode() + ' - ' + res.getBody());
             }
+            
+            // Extract unique template types for filter options
+            Set<String> uniqueTypes = new Set<String>();
+            for (Map<String, Object> template : allTemplates) {
+                String templateTypeValue = (String) template.get('TemplateType');
+                if (String.isNotBlank(templateTypeValue)) {
+                    uniqueTypes.add(templateTypeValue);
+                }
+            }
+            
+            // Convert to sorted list of filter options
+            List<String> sortedTypes = new List<String>(uniqueTypes);
+            sortedTypes.sort();
+            
+            List<Map<String, String>> templateTypeOptions = new List<Map<String, String>>();
+            templateTypeOptions.add(new Map<String, String>{
+                'label' => 'All Types',
+                'value' => ''
+            });
+            
+            for (String templateTypeValue : sortedTypes) {
+                templateTypeOptions.add(new Map<String, String>{
+                    'label' => templateTypeValue,
+                    'value' => templateTypeValue
+                });
+            }
+            
+            // Apply client-side filtering to all templates
+            List<Map<String, Object>> filteredTemplates = applyTemplateFilters(allTemplates, templateName, templateType, templateStatus);
+            
+            // Apply client-side pagination to filtered results
+            Integer filteredTotalCount = filteredTemplates.size();
+            Integer startIndex = (pageNumber - 1) * pageSize;
+            Integer endIndex = Math.min(startIndex + pageSize, filteredTotalCount);
+            
+            List<Map<String, Object>> paginatedTemplates = new List<Map<String, Object>>();
+            if (startIndex < filteredTotalCount) {
+                for (Integer i = startIndex; i < endIndex; i++) {
+                    paginatedTemplates.add(filteredTemplates[i]);
+                }
+            }
+            
+            // Calculate pagination info based on filtered results
+            Integer totalPages = pageSize > 0 ? (Integer) Math.ceil((Decimal) filteredTotalCount / pageSize) : 1;
+            Boolean hasNext = (startIndex + pageSize) < filteredTotalCount;
+            Boolean hasPrevious = pageNumber > 1;
+            
+            System.debug('Client-side pagination - Total: ' + allTemplates.size() + ', Filtered: ' + filteredTotalCount + ', Page: ' + pageNumber + '/' + totalPages + ', Returned: ' + paginatedTemplates.size());
+            
+            return new Map<String, Object>{
+                'templates' => paginatedTemplates,
+                'templateTypeOptions' => templateTypeOptions,
+                'pagination' => new Map<String, Object>{
+                    'totalCount' => filteredTotalCount,
+                    'totalPages' => totalPages,
+                    'currentPage' => pageNumber,
+                    'pageSize' => pageSize,
+                    'hasNext' => hasNext,
+                    'hasPrevious' => hasPrevious
+                }
+            };
+            
         } catch (Exception e) {
-            System.debug('Exception in getAllPromptTemplates: ' + e.getMessage());
+            System.debug('Exception in getPromptTemplates: ' + e.getMessage());
+            System.debug('Stack trace: ' + e.getStackTraceString());
             return new Map<String, Object>{
                 'templates' => new List<Map<String, Object>>(),
                 'pagination' => new Map<String, Object>{
                     'totalCount' => 0,
-                    'totalPages' => 0,
+                    'totalPages' => 1,
                     'currentPage' => 1,
-                    'pageSize' => pageSize != null ? pageSize : 20,
+                    'pageSize' => pageSize,
                     'hasNext' => false,
-                    'hasPrevious' => false,
-                    'hasMoreRecords' => false
+                    'hasPrevious' => false
                 }
             };
         }
     }
+    
+    
+    private static String extractFieldValue(Map<String, Object> fields, String fieldName) {
+        if (fields != null && fields.containsKey(fieldName)) {
+            Map<String, Object> fieldData = (Map<String, Object>) fields.get(fieldName);
+            if (fieldData != null && fieldData.containsKey('value')) {
+                Object value = fieldData.get('value');
+                return value != null ? String.valueOf(value) : null;
+            }
+        }
+        return null;
+    }
+    
+    private static List<Map<String, Object>> applyTemplateFilters(
+        List<Map<String, Object>> templates,
+        String templateName,
+        String templateType,
+        String templateStatus
+    ) {
+        List<Map<String, Object>> filteredTemplates = new List<Map<String, Object>>();
+        
+        for (Map<String, Object> template : templates) {
+            Boolean matches = true;
+            
+            // Filter by template name (case-insensitive contains)
+            if (String.isNotBlank(templateName)) {
+                String name = (String) template.get('Name');
+                if (String.isBlank(name) || !name.toLowerCase().contains(templateName.toLowerCase())) {
+                    matches = false;
+                }
+            }
+            
+            // Filter by template type (exact match)
+            if (String.isNotBlank(templateType) && matches) {
+                String type = (String) template.get('TemplateType');
+                if (String.isBlank(type) || !type.equals(templateType)) {
+                    matches = false;
+                }
+            }
+            
+            // Filter by template status (exact match)
+            if (String.isNotBlank(templateStatus) && matches) {
+                String status = (String) template.get('Status');
+                if (String.isBlank(status) || !status.equals(templateStatus)) {
+                    matches = false;
+                }
+            }
+            
+            if (matches) {
+                filteredTemplates.add(template);
+            }
+        }
+        
+        return filteredTemplates;
+    }
+
     
     @AuraEnabled
     public static Map<String, Object> createAdvancedTestBatch(
@@ -671,20 +758,4 @@ public with sharing class ziip_PromptTestUtil_Controller {
         return customerUtterances;
     }
     
-    /**
-     * @description Helper method to extract field values from nested Salesforce API response structure
-     * @param fields Map containing field data with nested structure
-     * @param fieldName Name of the field to extract
-     * @return Object field value or null if not found
-     */
-    private static String extractFieldValue(Map<String, Object> fields, String fieldName) {
-        if (fields != null && fields.containsKey(fieldName)) {
-            Map<String, Object> fieldData = (Map<String, Object>) fields.get(fieldName);
-            if (fieldData != null && fieldData.containsKey('value')) {
-                Object value = fieldData.get('value');
-                return value != null ? String.valueOf(value) : null;
-            }
-        }
-        return null;
-    }
 }

@@ -53,7 +53,29 @@
     <!-- Custom Tabs -->
     <types>
         <members>Prompt_Test_Batch__c</members>
+        <members>Prompt_Testing_Utility</members>
         <name>CustomTab</name>
+    </types>
+    
+    <!-- FlexiPages (App Pages and Record Pages) -->
+    <types>
+        <members>Prompt_Test_Batch_Record_Page</members>
+        <members>Prompt_Test_Record_Page</members>
+        <members>Prompt_Testing_Utility</members>
+        <name>FlexiPage</name>
+    </types>
+    
+    <!-- Permission Sets -->
+    <types>
+        <members>Ziip_Prompt_Testing_Admin</members>
+        <members>Ziip_Prompt_Testing_Base</members>
+        <name>PermissionSet</name>
+    </types>
+    
+    <!-- Permission Set Groups -->
+    <types>
+        <members>Ziip_Prompt_Testing_Full_Access</members>
+        <name>PermissionSetGroup</name>
     </types>
     
     <version>62.0</version>
