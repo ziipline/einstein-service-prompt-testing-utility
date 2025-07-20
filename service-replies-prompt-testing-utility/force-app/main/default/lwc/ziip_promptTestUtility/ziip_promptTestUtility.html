@@ -36,10 +36,74 @@
                         </div>
                     </div>
 
+                    <!-- Template Filters -->
+                    <div class="slds-var-m-bottom_medium">
+                        <div class="slds-card">
+                            <div class="slds-card__header">
+                                <h2 class="slds-card__header-title">
+                                    <lightning-icon icon-name="utility:filter" size="small" class="slds-var-m-right_x-small"></lightning-icon>
+                                    Template Filters
+                                </h2>
+                            </div>
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-grid slds-gutters slds-wrap">
+                                    <!-- Template Name Filter -->
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                        <lightning-input
+                                            type="text"
+                                            label="Template Name"
+                                            placeholder="Search by template name"
+                                            value={templateNameFilter}
+                                            onchange={handleTemplateNameFilterChange}>
+                                        </lightning-input>
+                                    </div>
+                                    
+                                    <!-- Template Type Filter -->
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                        <lightning-combobox
+                                            label="Template Type"
+                                            value={templateTypeFilter}
+                                            placeholder="Select template type"
+                                            options={templateTypeOptions}
+                                            onchange={handleTemplateTypeFilterChange}>
+                                        </lightning-combobox>
+                                    </div>
+                                    
+                                    <!-- Template Status Filter -->
+                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                        <lightning-combobox
+                                            label="Status"
+                                            value={templateStatusFilter}
+                                            placeholder="Select status"
+                                            options={templateStatusOptions}
+                                            onchange={handleTemplateStatusFilterChange}>
+                                        </lightning-combobox>
+                                    </div>
+                                </div>
+                                
+                                <!-- Filter Action Buttons -->
+                                <div class="slds-var-m-top_medium">
+                                    <lightning-button-group>
+                                        <lightning-button
+                                            label="Apply Filters"
+                                            variant="brand"
+                                            onclick={handleApplyTemplateFilters}>
+                                        </lightning-button>
+                                        <lightning-button
+                                            label="Clear Filters"
+                                            variant="neutral"
+                                            onclick={handleClearTemplateFilters}>
+                                        </lightning-button>
+                                    </lightning-button-group>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Template Count Display -->
                     <div class="slds-var-m-bottom_small">
                         <p class="slds-text-body_small slds-text-color_weak">
-                            Showing page {templateCurrentPage} of {templateTotalPages} | {templateTotalCount} templates total
+                            Showing {templateCurrentPageInfo}
                         </p>
                     </div>
 

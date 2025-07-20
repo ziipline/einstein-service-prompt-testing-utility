@@ -1,7 +1,7 @@
 import { LightningElement, api, wire } from 'lwc';
 import getMessagingSessions from '@salesforce/apex/ziip_PromptTestUtil_Controller.getMessagingSessions';
 import getStatusOptions from '@salesforce/apex/ziip_PromptTestUtil_Controller.getStatusOptions';
-import getAllPromptTemplates from '@salesforce/apex/ziip_PromptTestUtil_Controller.getAllPromptTemplates';
+import getPromptTemplates from '@salesforce/apex/ziip_PromptTestUtil_Controller.getPromptTemplates';
 import createAdvancedTestBatch from '@salesforce/apex/ziip_PromptTestUtil_Controller.createAdvancedTestBatch';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
@@ -30,22 +30,37 @@ const sessionColumns = [
 
 export default class Ziip_promptTestUtility extends LightningElement {
     
-    @api pageSize = 10;
+    @api messagingSessionsPageSize = 10;
+    @api promptTemplatesPageSize = 20;
     
     // Step Management
     showTemplateSelection = true;
     showSessionSelection = false;
     
     // Template Selection Properties
-    promptTemplates = [];
+    promptTemplates = []; // Current page of templates from server
     templateColumns = templateColumns;
     selectedContextualTemplate = null;
     selectedGroundedTemplate = null;
-    isLoadingTemplates = true;
+    isLoadingTemplates = false;
+    
+    // Template Filter Properties
+    templateNameFilter = '';
+    templateTypeFilter = '';
+    templateStatusFilter = '';
+    templateTypeOptions = [
+        { label: 'All Types', value: '' },
+        { label: 'Grounded', value: 'Grounded' },
+        { label: 'Standard', value: 'Standard' }
+    ];
+    templateStatusOptions = [
+        { label: 'All Status', value: '' },
+        { label: 'Active', value: 'Active' },
+        { label: 'Inactive', value: 'Inactive' }
+    ];
     
     // Template Pagination Properties
     templateCurrentPage = 1;
-    templatePageSize = 20;
     templateTotalPages = 1;
     templateTotalCount = 0;
     templateHasNext = false;
@@ -92,14 +107,17 @@ export default class Ziip_promptTestUtility extends LightningElement {
     loadTemplates() {
         this.isLoadingTemplates = true;
         
-        getAllPromptTemplates({ 
-            pageSize: this.templatePageSize, 
-            pageNumber: this.templateCurrentPage
+        getPromptTemplates({ 
+            pageSize: this.promptTemplatesPageSize, 
+            pageNumber: this.templateCurrentPage,
+            templateName: this.templateNameFilter || null,
+            templateType: this.templateTypeFilter || null,
+            templateStatus: this.templateStatusFilter || null
         })
         .then(result => {
-            this.promptTemplates = result.templates;
+            this.promptTemplates = result.templates || [];
             
-            // Update template pagination info
+            // Update pagination info
             const pagination = result.pagination;
             this.templateTotalPages = pagination.totalPages;
             this.templateTotalCount = pagination.totalCount;
@@ -107,7 +125,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
             this.templateHasPrevious = pagination.hasPrevious;
             
             this.isLoadingTemplates = false;
-            console.log('Templates loaded:', this.promptTemplates);
+            console.log('Templates loaded:', this.promptTemplates.length, 'templates');
             console.log('Template pagination info:', pagination);
         })
         .catch(error => {
@@ -117,7 +135,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
         });
     }
 
-    // Template pagination handlers
+    // Template pagination handlers - now work with server-side data
     handleTemplatePreviousPage() {
         if (this.templateHasPrevious) {
             this.templateCurrentPage--;
@@ -139,6 +157,33 @@ export default class Ziip_promptTestUtility extends LightningElement {
 
     handleTemplateLastPage() {
         this.templateCurrentPage = this.templateTotalPages;
+        this.loadTemplates();
+    }
+
+    // TEMPLATE FILTER METHODS
+
+    handleTemplateNameFilterChange(event) {
+        this.templateNameFilter = event.target.value;
+    }
+
+    handleTemplateTypeFilterChange(event) {
+        this.templateTypeFilter = event.target.value;
+    }
+
+    handleTemplateStatusFilterChange(event) {
+        this.templateStatusFilter = event.target.value;
+    }
+
+    handleApplyTemplateFilters() {
+        this.templateCurrentPage = 1; // Reset to first page when applying filters
+        this.loadTemplates();
+    }
+
+    handleClearTemplateFilters() {
+        this.templateNameFilter = '';
+        this.templateTypeFilter = '';
+        this.templateStatusFilter = '';
+        this.templateCurrentPage = 1;
         this.loadTemplates();
     }
 
@@ -183,7 +228,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
         this.isLoadingSessions = true;
         
         getMessagingSessions({ 
-            pageSize: this.pageSize, 
+            pageSize: this.messagingSessionsPageSize, 
             pageNumber: this.currentPage,
             startDate: this.startDate || null,
             endDate: this.endDate || null,
@@ -325,13 +370,28 @@ export default class Ziip_promptTestUtility extends LightningElement {
 
     // COMPUTED PROPERTIES
 
+    // Template computed properties for server-side pagination
+    get templateCurrentPageInfo() {
+        if (this.templateTotalCount === 0) {
+            return '0 - 0 of 0';
+        }
+        const start = (this.templateCurrentPage - 1) * this.promptTemplatesPageSize + 1;
+        const end = Math.min(this.templateCurrentPage * this.promptTemplatesPageSize, this.templateTotalCount);
+        return `${start} - ${end} of ${this.templateTotalCount}`;
+    }
+
+    get templateShowPagination() {
+        return this.templateTotalPages > 1;
+    }
+
+    // Session computed properties
     get continueDisabled() {
         return !this.selectedContextualTemplate || !this.selectedGroundedTemplate;
     }
 
     get currentPageInfo() {
-        const start = (this.currentPage - 1) * this.pageSize + 1;
-        const end = Math.min(this.currentPage * this.pageSize, this.totalCount);
+        const start = (this.currentPage - 1) * this.messagingSessionsPageSize + 1;
+        const end = Math.min(this.currentPage * this.messagingSessionsPageSize, this.totalCount);
         return `${start} - ${end} of ${this.totalCount}`;
     }
 
