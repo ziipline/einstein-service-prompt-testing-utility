@@ -310,7 +310,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
             return;
         }
 
-        const loadingToast = this.showToast('Processing', 'Creating advanced test batch...', 'info');
+        const loadingToast = this.showToast('Processing', 'Creating test batch...', 'info');
 
         createAdvancedTestBatch({ 
             sessionIds: this.selectedSessionIds,
