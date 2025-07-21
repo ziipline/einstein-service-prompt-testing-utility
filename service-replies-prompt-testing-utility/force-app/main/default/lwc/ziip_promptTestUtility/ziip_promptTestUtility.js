@@ -23,7 +23,7 @@ const templateColumns = [
 
 // Session table columns
 const sessionColumns = [
-    { label: 'Session Name', fieldName: 'name', type: 'text' },
+    { label: 'Session Name', fieldName: 'nameUrl', type: 'url', typeAttributes: { label: { fieldName: 'name' }, target: '_blank' } },
     { label: 'Transcript Preview', fieldName: 'transcript', type: 'text', wrapText: true }
 ];
 
@@ -240,6 +240,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
             this.sessions = result.sessions.map(session => ({
                 id: session.Id,
                 name: session.Name,
+                nameUrl: `/lightning/r/MessagingSession/${session.Id}/view`,
                 transcript: session.transcript ? session.transcript.substring(0, 200) + '...' : 'No transcript available'
             }));
             this.filteredSessions = [...this.sessions];
@@ -310,7 +311,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
             return;
         }
 
-        const loadingToast = this.showToast('Processing', 'Creating test batch...', 'info');
+        this.showToast('Processing', 'Creating test batch...', 'info');
 
         createAdvancedTestBatch({ 
             sessionIds: this.selectedSessionIds,
