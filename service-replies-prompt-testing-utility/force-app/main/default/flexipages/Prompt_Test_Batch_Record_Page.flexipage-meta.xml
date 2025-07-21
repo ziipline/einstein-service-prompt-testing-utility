@@ -117,12 +117,6 @@
                             <value>Status__c</value>
                         </valueListItems>
                         <valueListItems>
-                            <value>Case__c</value>
-                        </valueListItems>
-                        <valueListItems>
-                            <value>Voice_Call__c</value>
-                        </valueListItems>
-                        <valueListItems>
                             <value>Primary_Result__c</value>
                         </valueListItems>
                         <valueListItems>
@@ -231,30 +225,13 @@
                 </fieldInstanceProperties>
                 <fieldItem>Record.Secondary_Template_Id__c</fieldItem>
                 <identifier>RecordSecondary_Template_Id_cField</identifier>
-            </fieldInstance>
-        </itemInstances>
-        <name>Facet-a26a57ef-036c-41ce-848f-c8a27d4c2649</name>
-        <type>Facet</type>
-    </flexiPageRegions>
-    <flexiPageRegions>
-        <itemInstances>
-            <fieldInstance>
-                <fieldInstanceProperties>
-                    <name>uiBehavior</name>
-                    <value>none</value>
-                </fieldInstanceProperties>
-                <fieldItem>Record.Context_Template_Id__c</fieldItem>
-                <identifier>RecordContext_Template_Id_cField</identifier>
-            </fieldInstance>
-        </itemInstances>
-        <itemInstances>
-            <fieldInstance>
-                <fieldInstanceProperties>
-                    <name>uiBehavior</name>
-                    <value>none</value>
-                </fieldInstanceProperties>
-                <fieldItem>Record.Grounded_Template_Id__c</fieldItem>
-                <identifier>RecordGrounded_Template_Id_cField</identifier>
+                <visibilityRule>
+                    <criteria>
+                        <leftValue>{!Record.Test_Type__c}</leftValue>
+                        <operator>EQUAL</operator>
+                        <rightValue>Service Replies</rightValue>
+                    </criteria>
+                </visibilityRule>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
@@ -265,8 +242,19 @@
                 </fieldInstanceProperties>
                 <fieldItem>Record.Retriever_Id__c</fieldItem>
                 <identifier>RecordRetriever_Id_cField</identifier>
+                <visibilityRule>
+                    <criteria>
+                        <leftValue>{!Record.Test_Type__c}</leftValue>
+                        <operator>EQUAL</operator>
+                        <rightValue>Service Replies</rightValue>
+                    </criteria>
+                </visibilityRule>
             </fieldInstance>
         </itemInstances>
+        <name>Facet-a26a57ef-036c-41ce-848f-c8a27d4c2649</name>
+        <type>Facet</type>
+    </flexiPageRegions>
+    <flexiPageRegions>
         <name>Facet-60ba4223-01c1-45e8-8619-23828dab0111</name>
         <type>Facet</type>
     </flexiPageRegions>

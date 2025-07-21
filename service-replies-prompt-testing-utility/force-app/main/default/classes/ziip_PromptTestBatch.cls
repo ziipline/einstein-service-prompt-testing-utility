@@ -126,8 +126,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     public Database.QueryLocator start(Database.BatchableContext bc) {
         return Database.getQueryLocator([
             SELECT Id, Prompt_Test_Batch__c, Messaging_Session__c, Case__c, Voice_Call__c, Status__c, 
-                   Transcript__c, Contextual_Service_Replies_Result__c, Grounded_Service_Replies_Result__c,
-                   Primary_Result__c, Secondary_Result__c,
+                   Transcript__c, Primary_Result__c, Secondary_Result__c,
                    Customer_Utterance__c, Utterance_Sequence__c,
                    Prompt_Test_Batch__r.Test_Type__c,
                    Prompt_Test_Batch__r.Primary_Template_Id__c,
@@ -239,9 +238,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 'contextual'
             );
             
-            // Store results in both old and new fields for backwards compatibility
             test.Primary_Result__c = formatServiceRepliesResult(contextResult, 'contextual');
-            test.Contextual_Service_Replies_Result__c = test.Primary_Result__c;
             
             // Extract search query for grounded template
             String searchQuery = extractSearchQueryFromResult(contextResult);
@@ -259,11 +256,9 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 );
                 
                 test.Secondary_Result__c = formatServiceRepliesResult(groundedResult, 'grounded');
-                test.Grounded_Service_Replies_Result__c = test.Secondary_Result__c;
             } else {
                 String skipReason = buildGroundedSkipMessage(searchQuery);
                 test.Secondary_Result__c = skipReason;
-                test.Grounded_Service_Replies_Result__c = skipReason;
             }
         }
     }
