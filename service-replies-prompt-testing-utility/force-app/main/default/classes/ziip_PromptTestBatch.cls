@@ -563,7 +563,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             promptGenerationsInput.inputParams = inputParams;
             promptGenerationsInput.additionalConfig = new ConnectApi.EinsteinLlmAdditionalConfigInput();
             promptGenerationsInput.additionalConfig.numGenerations = NUM_GENERATIONS;
-            promptGenerationsInput.additionalConfig.enablePiiMasking = false;
+            promptGenerationsInput.additionalConfig.enablePiiMasking = true;
             promptGenerationsInput.additionalConfig.applicationName = APPLICATION_NAME;
             promptGenerationsInput.isPreview = false;
             
