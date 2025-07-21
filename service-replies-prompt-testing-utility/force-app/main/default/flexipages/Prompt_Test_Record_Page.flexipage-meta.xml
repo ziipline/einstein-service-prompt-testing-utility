@@ -58,6 +58,26 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
+                <fieldItem>Record.Case__c</fieldItem>
+                <identifier>RecordCase_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Voice_Call__c</fieldItem>
+                <identifier>RecordVoice_Call_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
                 <fieldItem>Record.Customer_Utterance__c</fieldItem>
                 <identifier>RecordCustomer_Utterance_cField</identifier>
             </fieldInstance>
@@ -110,8 +130,8 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.Contextual_Service_Replies_Result__c</fieldItem>
-                <identifier>RecordContextual_Service_Replies_Result_cField</identifier>
+                <fieldItem>Record.Primary_Result__c</fieldItem>
+                <identifier>RecordPrimary_Result_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <name>Facet-c2a9eaee-3834-4ecf-b28a-b58736ec30c6</name>
@@ -124,8 +144,8 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.Grounded_Service_Replies_Result__c</fieldItem>
-                <identifier>RecordGrounded_Service_Replies_Result_cField</identifier>
+                <fieldItem>Record.Secondary_Result__c</fieldItem>
+                <identifier>RecordSecondary_Result_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <name>Facet-c5432b82-f211-4b84-b542-61b57e051484</name>
@@ -287,14 +307,26 @@
     <flexiPageRegions>
         <itemInstances>
             <fieldInstance>
-                <fieldItem>Record.Prompt_Test_Batch__r.Context_Template_Id__c</fieldItem>
-                <identifier>RecordPrompt_Test_Batch_rContext_Template_Id_cField</identifier>
+                <fieldItem>Record.Prompt_Test_Batch__r.Test_Type__c</fieldItem>
+                <identifier>RecordPrompt_Test_Batch_rTest_Type_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
             <fieldInstance>
-                <fieldItem>Record.Prompt_Test_Batch__r.Grounded_Template_Id__c</fieldItem>
-                <identifier>RecordPrompt_Test_Batch_rGrounded_Template_Id_cField</identifier>
+                <fieldItem>Record.Prompt_Test_Batch__r.Primary_Template_Id__c</fieldItem>
+                <identifier>RecordPrompt_Test_Batch_rPrimary_Template_Id_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldItem>Record.Prompt_Test_Batch__r.Secondary_Template_Id__c</fieldItem>
+                <identifier>RecordPrompt_Test_Batch_rSecondary_Template_Id_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldItem>Record.Prompt_Test_Batch__r.Retriever_Id__c</fieldItem>
+                <identifier>RecordPrompt_Test_Batch_rRetriever_Id_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <name>Facet-d1de22c7-7e80-49f9-a957-248758f2565f</name>

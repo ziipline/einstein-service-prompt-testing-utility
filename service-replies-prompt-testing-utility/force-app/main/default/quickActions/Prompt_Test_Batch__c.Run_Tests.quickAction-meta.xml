@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Updates the prompt test batch status to submitted, triggering the batch to execute</description>
+    <fieldOverrides>
+        <field>Status__c</field>
+        <literalValue>Submitted</literalValue>
+    </fieldOverrides>
+    <label>Run Tests</label>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <quickActionLayout>
+        <layoutSectionStyle>TwoColumnsLeftToRight</layoutSectionStyle>
+        <quickActionLayoutColumns/>
+        <quickActionLayoutColumns/>
+    </quickActionLayout>
+    <successMessage>test run queued</successMessage>
+    <type>Update</type>
+</QuickAction>

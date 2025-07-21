@@ -1,34 +1,135 @@
 <template>
     <div class="slds-var-p-around_medium">
         
-        <!-- Step 1: Template Selection -->
-        <div if:true={showTemplateSelection}>
-            <lightning-card title="Step 1: Select Prompt Templates" icon-name="standard:prompt">
+        <!-- Step 1: Test Type Selection -->
+        <div if:true={showTestTypeSelection}>
+            <lightning-card title="Step 1: Select Test Type" icon-name="standard:prompt">
                 <div class="slds-var-p-horizontal_medium">
                     
-                    <!-- Selection Status -->
+                    <div class="slds-var-m-bottom_medium">
+                        <p class="slds-text-body_regular">
+                            Choose the type of Einstein Service Cloud test you want to perform:
+                        </p>
+                    </div>
+
+                    <!-- Test Type Options -->
+                    <div class="slds-grid slds-gutters slds-wrap slds-var-m-bottom_large">
+                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                            <div class="slds-box slds-box_link slds-text-align_center test-type-card" 
+                                 onclick={handleSelectServiceReplies}
+                                 data-test-type="Service Replies">
+                                <lightning-icon icon-name="standard:live_chat" size="medium" class="slds-var-m-bottom_small"></lightning-icon>
+                                <h3 class="slds-text-heading_small">Service Replies</h3>
+                                <p class="slds-text-body_small">
+                                    Test Einstein service reply suggestions for chat conversations. Uses contextual and grounded templates.
+                                </p>
+                                <div class="slds-var-m-top_small">
+                                    <lightning-badge label="Chat & Messaging" variant="brand"></lightning-badge>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                            <div class="slds-box slds-box_link slds-text-align_center test-type-card" 
+                                 onclick={handleSelectCaseSummary}
+                                 data-test-type="Case Summary">
+                                <lightning-icon icon-name="standard:case" size="medium" class="slds-var-m-bottom_small"></lightning-icon>
+                                <h3 class="slds-text-heading_small">Case Summary</h3>
+                                <p class="slds-text-body_small">
+                                    Test Einstein case summarization for support cases. Uses a single summary template.
+                                </p>
+                                <div class="slds-var-m-top_small">
+                                    <lightning-badge label="Case Records" variant="success"></lightning-badge>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                            <div class="slds-box slds-box_link slds-text-align_center test-type-card" 
+                                 onclick={handleSelectWorkSummary}
+                                 data-test-type="Work Summary">
+                                <lightning-icon icon-name="standard:work_summary" size="medium" class="slds-var-m-bottom_small"></lightning-icon>
+                                <h3 class="slds-text-heading_small">Work Summary</h3>
+                                <p class="slds-text-body_small">
+                                    Test Einstein work summarization for conversations and calls. Uses a single summary template.
+                                </p>
+                                <div class="slds-var-m-top_small">
+                                    <lightning-badge label="Chat & Voice" variant="warning"></lightning-badge>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Selected Test Type Display -->
+                    <template if:true={selectedTestType}>
+                        <div class="slds-var-m-bottom_medium">
+                            <div class="slds-box slds-theme_shade">
+                                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                    <div class="slds-col">
+                                        <h3 class="slds-text-heading_small">Selected Test Type: {selectedTestType}</h3>
+                                        <p class="slds-text-body_small">{testTypeDescription}</p>
+                                    </div>
+                                    <div class="slds-col slds-no-flex">
+                                        <lightning-button
+                                            variant="brand"
+                                            label="Continue to Template Selection"
+                                            onclick={handleContinueToTemplates}>
+                                        </lightning-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </lightning-card>
+        </div>
+
+        <!-- Step 2: Template Selection -->
+        <div if:true={showTemplateSelection}>
+            <lightning-card title="Step 2: Select Prompt Templates" icon-name="standard:prompt">
+                <div class="slds-var-p-horizontal_medium">
+                    
+                    <!-- Back Button -->
+                    <div class="slds-var-m-bottom_medium">
+                        <lightning-button
+                            label="← Back to Test Type Selection"
+                            variant="neutral"
+                            onclick={handleBackToTestTypes}>
+                        </lightning-button>
+                    </div>
+
+                    <!-- Selected Test Type Summary -->
+                    <div class="slds-var-m-bottom_medium">
+                        <div class="slds-box slds-theme_shade">
+                            <p class="slds-text-body_small">
+                                <strong>Selected Test Type:</strong> {selectedTestType}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Template Selection Status -->
                     <div class="slds-grid slds-gutters slds-var-m-bottom_medium">
-                        <div class="slds-col slds-size_1-of-2">
+                        <div class="slds-col" lwc:if={requiresPrimaryTemplate}>
                             <div class="slds-box slds-theme_shade slds-text-align_center">
-                                <h3 class="slds-text-heading_small">Contextual Service Reply Template</h3>
+                                <h3 class="slds-text-heading_small">{primaryTemplateLabel}</h3>
                                 <p class="slds-text-body_regular">
-                                    <template if:true={selectedContextualTemplate}>
-                                        <lightning-badge label={selectedContextualTemplate.Name} variant="success"></lightning-badge>
+                                    <template if:true={selectedPrimaryTemplate}>
+                                        <lightning-badge label={selectedPrimaryTemplate.Name} variant="success"></lightning-badge>
                                     </template>
-                                    <template if:false={selectedContextualTemplate}>
+                                    <template if:false={selectedPrimaryTemplate}>
                                         <lightning-badge label="Not Selected" variant="lightest"></lightning-badge>
                                     </template>
                                 </p>
                             </div>
                         </div>
-                        <div class="slds-col slds-size_1-of-2">
+                        <div class="slds-col" lwc:if={requiresSecondaryTemplate}>
                             <div class="slds-box slds-theme_shade slds-text-align_center">
-                                <h3 class="slds-text-heading_small">Grounded Service Reply Template</h3>
+                                <h3 class="slds-text-heading_small">{secondaryTemplateLabel}</h3>
                                 <p class="slds-text-body_regular">
-                                    <template if:true={selectedGroundedTemplate}>
-                                        <lightning-badge label={selectedGroundedTemplate.Name} variant="success"></lightning-badge>
+                                    <template if:true={selectedSecondaryTemplate}>
+                                        <lightning-badge label={selectedSecondaryTemplate.Name} variant="success"></lightning-badge>
                                     </template>
-                                    <template if:false={selectedGroundedTemplate}>
+                                    <template if:false={selectedSecondaryTemplate}>
                                         <lightning-badge label="Not Selected" variant="lightest"></lightning-badge>
                                     </template>
                                 </p>
@@ -36,13 +137,45 @@
                         </div>
                     </div>
 
+                    <!-- Retriever Configuration (for Service Replies only) -->
+                    <template if:true={showRetrieverConfig}>
+                        <div class="slds-var-m-bottom_medium">
+                            <div class="slds-card">
+                                <div class="slds-card__header">
+                                    <h3 class="slds-text-heading_small">Retriever Configuration</h3>
+                                </div>
+                                <div class="slds-card__body slds-card__body_inner">
+                                    <lightning-input
+                                        type="text"
+                                        label="Retriever ID"
+                                        value={selectedRetrieverId}
+                                        placeholder="Enter Einstein retriever ID"
+                                        help-text="Enter the Einstein retriever ID for grounded template processing"
+                                        required
+                                        onchange={handleRetrieverIdChange}>
+                                    </lightning-input>
+                                    <template if:true={defaultRetrieverId}>
+                                        <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">
+                                            Default retriever: {defaultRetrieverId}
+                                        </p>
+                                    </template>
+                                    <template if:false={defaultRetrieverId}>
+                                        <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">
+                                            No default retriever configured. Ask your admin to set the Default Retriever ID in the component design properties.
+                                        </p>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
                     <!-- Template Filters -->
                     <div class="slds-var-m-bottom_medium">
                         <div class="slds-card">
                             <div class="slds-card__header">
                                 <h2 class="slds-card__header-title">
                                     <lightning-icon icon-name="utility:filter" size="small" class="slds-var-m-right_x-small"></lightning-icon>
-                                    Template Filters
+                                    Prompt Template Filters
                                 </h2>
                             </div>
                             <div class="slds-card__body slds-card__body_inner">
@@ -168,18 +301,18 @@
                     <div class="slds-text-align_center">
                         <lightning-button
                             variant="brand"
-                            label="Continue to Session Selection"
-                            onclick={handleContinueToSessions}
-                            disabled={continueDisabled}>
+                            label={continueToRecordsLabel}
+                            onclick={handleContinueToRecords}
+                            disabled={continueToRecordsDisabled}>
                         </lightning-button>
                     </div>
                 </div>
             </lightning-card>
         </div>
 
-        <!-- Step 2: Session Selection -->
-        <div if:true={showSessionSelection}>
-            <lightning-card title="Step 2: Select Messaging Sessions" icon-name="action:new_custom3">
+        <!-- Step 3: Record Selection -->
+        <div if:true={showRecordSelection}>
+            <lightning-card title={recordSelectionTitle} icon-name={recordSelectionIcon}>
                 
                 <!-- Back to Templates Button -->
                 <div class="slds-var-m-around_medium">
@@ -195,29 +328,33 @@
                 <div class="slds-var-m-around_medium">
                     <div class="slds-box slds-theme_shade">
                         <p class="slds-text-body_small">
-                            <strong>Selected Templates:</strong><br/>
-                            Contextual: {selectedContextualTemplate.Name}<br/>
-                            Grounded: {selectedGroundedTemplate.Name}
+                            <strong>Test Type:</strong> {selectedTestType}<br/>
+                            <template if:true={selectedPrimaryTemplate}>
+                                <strong>{primaryTemplateLabel}:</strong> {selectedPrimaryTemplate.Name}<br/>
+                            </template>
+                            <template if:true={selectedSecondaryTemplate}>
+                                <strong>{secondaryTemplateLabel}:</strong> {selectedSecondaryTemplate.Name}
+                            </template>
                         </p>
                     </div>
                 </div>
                 
                 <!-- Loading Spinner -->
-                <template if:true={isLoadingSessions}>
+                <template if:true={isLoadingRecords}>
                     <div class="slds-var-m-around_large slds-text-align_center">
                         <lightning-spinner 
-                            alternative-text="Loading messaging sessions..." 
+                            alternative-text={loadingRecordsMessage} 
                             size="large">
                         </lightning-spinner>
                         <div class="slds-var-m-top_small">
-                            <p class="slds-text-body_regular">Loading messaging sessions and transcripts...</p>
-                            <p class="slds-text-body_small slds-text-color_weak">This may take a moment as we fetch conversation data.</p>
+                            <p class="slds-text-body_regular">{loadingRecordsMessage}</p>
+                            <p class="slds-text-body_small slds-text-color_weak">This may take a moment as we fetch data.</p>
                         </div>
                     </div>
                 </template>
 
-                <!-- Session Selection Content -->
-                <template if:false={isLoadingSessions}>
+                <!-- Record Selection Content -->
+                <template if:false={isLoadingRecords}>
                     <!-- Filter Section -->
                     <div class="slds-var-m-around_medium">
                         <div class="slds-card">
@@ -247,27 +384,72 @@
                                         </lightning-input>
                                     </div>
                                     
-                                    <!-- Session Name Filter -->
-                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
-                                        <lightning-input
-                                            type="text"
-                                            label="Session Name"
-                                            placeholder="Enter session name"
-                                            value={sessionName}
-                                            onchange={handleSessionNameChange}>
-                                        </lightning-input>
-                                    </div>
-                                    
-                                    <!-- Status Filter -->
-                                    <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
-                                        <lightning-combobox
-                                            label="Status"
-                                            value={selectedStatus}
-                                            placeholder="Select status"
-                                            options={statusOptions}
-                                            onchange={handleStatusChange}>
-                                        </lightning-combobox>
-                                    </div>
+                                    <!-- Dynamic Record Filters Based on Test Type -->
+                                    <template if:true={showMessagingFilters}>
+                                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                            <lightning-input
+                                                type="text"
+                                                label="Session Name"
+                                                placeholder="Enter session name"
+                                                value={sessionName}
+                                                onchange={handleSessionNameChange}>
+                                            </lightning-input>
+                                        </div>
+                                        
+                                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                            <lightning-combobox
+                                                label="Status"
+                                                value={selectedStatus}
+                                                placeholder="Select status"
+                                                options={statusOptions}
+                                                onchange={handleStatusChange}>
+                                            </lightning-combobox>
+                                        </div>
+                                    </template>
+
+                                    <template if:true={showCaseFilters}>
+                                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                            <lightning-input
+                                                type="text"
+                                                label="Subject"
+                                                placeholder="Enter case subject"
+                                                value={caseSubject}
+                                                onchange={handleCaseSubjectChange}>
+                                            </lightning-input>
+                                        </div>
+                                        
+                                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                            <lightning-combobox
+                                                label="Status"
+                                                value={selectedCaseStatus}
+                                                placeholder="Select status"
+                                                options={caseStatusOptions}
+                                                onchange={handleCaseStatusChange}>
+                                            </lightning-combobox>
+                                        </div>
+                                    </template>
+
+                                    <template if:true={showVoiceCallFilters}>
+                                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                            <lightning-combobox
+                                                label="Call Type"
+                                                value={selectedCallType}
+                                                placeholder="Select call type"
+                                                options={callTypeOptions}
+                                                onchange={handleCallTypeChange}>
+                                            </lightning-combobox>
+                                        </div>
+                                        
+                                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-large-size_1-of-4">
+                                            <lightning-combobox
+                                                label="Status"
+                                                value={selectedVoiceCallStatus}
+                                                placeholder="Select status"
+                                                options={voiceCallStatusOptions}
+                                                onchange={handleVoiceCallStatusChange}>
+                                            </lightning-combobox>
+                                        </div>
+                                    </template>
                                 </div>
                                 
                                 <!-- Filter Action Buttons -->
@@ -293,7 +475,7 @@
                     <div class="slds-var-m-around_medium">
                         <lightning-input
                             type="text"
-                            label="Quick Search Messaging Session (Current Page)"
+                            label={quickSearchLabel}
                             placeholder="Search current page results"
                             value={searchKey}
                             onchange={handleSearch}>
@@ -304,9 +486,9 @@
                     <div class="slds-var-m-around_medium">
                         <div style="height: 400px; overflow-y: auto;">
                             <lightning-datatable
-                                key-field="id"
-                                data={filteredSessions}
-                                columns={sessionColumns}
+                                key-field="Id"
+                                data={filteredRecords}
+                                columns={recordColumns}
                                 onrowselection={handleRowSelection}
                                 max-row-selection="200"
                                 show-row-number-column>
@@ -359,17 +541,17 @@
                         <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
                             <div class="slds-col">
                                 <p class="slds-text-body_small slds-text-color_weak">
-                                    <template if:true={selectedSessionIds.length}>
-                                        {selectedSessionIds.length} session(s) selected - This will create test records for each customer utterance in the selected conversations.
+                                    <template if:true={selectedRecordIds.length}>
+                                        {selectedRecordIds.length} {recordTypeLabel}(s) selected - {recordSelectionDescription}
                                     </template>
-                                    <template if:false={selectedSessionIds.length}>
-                                        No sessions selected
+                                    <template if:false={selectedRecordIds.length}>
+                                        No {recordTypeLabel}s selected
                                     </template>
                                 </p>
                             </div>
                             <div class="slds-col slds-no-flex">
                                 <lightning-button
-                                    label="Create Advanced Test Batch"
+                                    label="Create Test Batch"
                                     variant="brand"
                                     onclick={handleCreateAdvancedTestBatch}
                                     disabled={hasNoSelections}>
@@ -383,4 +565,5 @@
         </div>
 
     </div>
+
 </template>

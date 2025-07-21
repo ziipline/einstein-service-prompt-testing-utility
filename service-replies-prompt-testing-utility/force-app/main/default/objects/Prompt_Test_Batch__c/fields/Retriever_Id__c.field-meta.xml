@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Context_Template_Id__c</fullName>
-    <description>The ID of the Context Template prompt to be used in the batch</description>
-    <label>Context Template ID</label>
+    <fullName>Retriever_Id__c</fullName>
+    <description>Einstein retriever ID used for grounded prompt template processing</description>
+    <externalId>false</externalId>
+    <label>Retriever ID</label>
     <length>255</length>
     <required>false</required>
+    <trackHistory>false</trackHistory>
     <trackTrending>false</trackTrending>
     <type>Text</type>
     <unique>false</unique>

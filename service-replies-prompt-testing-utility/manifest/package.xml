@@ -13,10 +13,27 @@
         <name>ApexTrigger</name>
     </types>
     
-    <!-- Lightning Web Components -->
+    <!-- Custom Fields -->
     <types>
-        <members>ziip_promptTestUtility</members>
-        <name>LightningComponentBundle</name>
+        <members>Prompt_Test_Batch__c.End_Datetime__c</members>
+        <members>Prompt_Test_Batch__c.Primary_Template_Id__c</members>
+        <members>Prompt_Test_Batch__c.Retriever_Id__c</members>
+        <members>Prompt_Test_Batch__c.Secondary_Template_Id__c</members>
+        <members>Prompt_Test_Batch__c.Start_Datetime__c</members>
+        <members>Prompt_Test_Batch__c.Status__c</members>
+        <members>Prompt_Test_Batch__c.Test_Type__c</members>
+        <members>Prompt_Test__c.Case__c</members>
+        <members>Prompt_Test__c.Customer_Utterance__c</members>
+        <members>Prompt_Test__c.Messaging_Session__c</members>
+        <members>Prompt_Test__c.Primary_Result__c</members>
+        <members>Prompt_Test__c.Prompt_Test_Batch__c</members>
+        <members>Prompt_Test__c.Result__c</members>
+        <members>Prompt_Test__c.Secondary_Result__c</members>
+        <members>Prompt_Test__c.Status__c</members>
+        <members>Prompt_Test__c.Transcript__c</members>
+        <members>Prompt_Test__c.Utterance_Sequence__c</members>
+        <members>Prompt_Test__c.Voice_Call__c</members>
+        <name>CustomField</name>
     </types>
     
     <!-- Custom Objects -->
@@ -26,29 +43,6 @@
         <name>CustomObject</name>
     </types>
     
-    <!-- Custom Fields for Prompt_Test__c -->
-    <types>
-        <members>Prompt_Test__c.Contextual_Service_Replies_Result__c</members>
-        <members>Prompt_Test__c.Grounded_Service_Replies_Result__c</members>
-        <members>Prompt_Test__c.Customer_Utterance__c</members>
-        <members>Prompt_Test__c.Messaging_Session__c</members>
-        <members>Prompt_Test__c.Prompt_Test_Batch__c</members>
-        <members>Prompt_Test__c.Result__c</members>
-        <members>Prompt_Test__c.Status__c</members>
-        <members>Prompt_Test__c.Transcript__c</members>
-        <members>Prompt_Test__c.Utterance_Sequence__c</members>
-        <name>CustomField</name>
-    </types>
-    
-    <!-- Custom Fields for Prompt_Test_Batch__c -->
-    <types>
-        <members>Prompt_Test_Batch__c.Context_Template_Id__c</members>
-        <members>Prompt_Test_Batch__c.End_Datetime__c</members>
-        <members>Prompt_Test_Batch__c.Grounded_Template_Id__c</members>
-        <members>Prompt_Test_Batch__c.Start_Datetime__c</members>
-        <members>Prompt_Test_Batch__c.Status__c</members>
-        <name>CustomField</name>
-    </types>
     
     <!-- Custom Tabs -->
     <types>
@@ -76,6 +70,24 @@
     <types>
         <members>Ziip_Prompt_Testing_Full_Access</members>
         <name>PermissionSetGroup</name>
+    </types>
+    
+    <!-- List Views -->
+    <types>
+        <members>Prompt_Test_Batch__c.All_Batches</members>
+        <name>ListView</name>
+    </types>
+    
+    <!-- Quick Actions -->
+    <types>
+        <members>Prompt_Test_Batch__c.Run_Tests</members>
+        <name>QuickAction</name>
+    </types>
+    
+    <!-- Lightning Web Components -->
+    <types>
+        <members>ziip_promptTestUtility</members>
+        <name>LightningComponentBundle</name>
     </types>
     
     <version>62.0</version>

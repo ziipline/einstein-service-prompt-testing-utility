@@ -17,17 +17,7 @@
     <!-- Field Permissions for Prompt_Test__c -->
     <fieldPermissions>
         <editable>false</editable>
-        <field>Prompt_Test__c.Contextual_Service_Replies_Result__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
         <field>Prompt_Test__c.Customer_Utterance__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Prompt_Test__c.Grounded_Service_Replies_Result__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -64,17 +54,7 @@
     <!-- Field Permissions for Prompt_Test_Batch__c -->
     <fieldPermissions>
         <editable>false</editable>
-        <field>Prompt_Test_Batch__c.Context_Template_Id__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
         <field>Prompt_Test_Batch__c.End_Datetime__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Prompt_Test_Batch__c.Grounded_Template_Id__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

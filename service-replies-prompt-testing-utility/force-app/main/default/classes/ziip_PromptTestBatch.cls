@@ -1,5 +1,6 @@
 /**
  * @description Batch class for processing Prompt Tests with Einstein AI templates
+ * Supports multiple test types: Service Replies, Case Summary, Work Summary
  * @author Ziipline
  */
 public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Database.AllowsCallouts {
@@ -13,12 +14,22 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private static final String STATUS_FAILED = 'Failed';
     
     // ===========================================
+    // TEST TYPE CONSTANTS
+    // ===========================================
+    private static final String TEST_TYPE_SERVICE_REPLIES = 'Service Replies';
+    private static final String TEST_TYPE_CASE_SUMMARY = 'Case Summary';
+    private static final String TEST_TYPE_WORK_SUMMARY = 'Work Summary';
+    
+    // ===========================================
     // EINSTEIN AI INPUT PARAMETER CONSTANTS
     // ===========================================
     private static final String INPUT_CONVERSATION_TRANSCRIPT = 'Input:conversation_transcript';
+    private static final String INPUT_CASE_TO_SUMMARIZE = 'Input:caseToSummarize';
     private static final String INPUT_RETRIEVER_ID_OR_NAME = 'Input:RetrieverIdOrName';
     private static final String INPUT_SEARCH_QUERY = 'Input:search_query';
     private static final String INPUT_MESSAGING_SESSION = 'Input:MessagingSession';
+    private static final String INPUT_CASE = 'Input:Case';
+    private static final String INPUT_VOICE_CALL = 'Input:VoiceCall';
     
     // ===========================================
     // JSON RESPONSE FIELD CONSTANTS
@@ -44,9 +55,18 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private static final Integer BATCH_SIZE_LIMIT = 200;
     private static final Integer MAX_RETRY_ATTEMPTS = 3;
     private static final String APPLICATION_NAME = 'PromptTemplateGenerationsInvocable';
-    private static final String DEFAULT_RETRIEVER_ID = '1CxHn0000008OeMKAU';
+    private static final String DEFAULT_RETRIEVER_ID = '';
     private static final String INVALID_SEARCH_QUERY_VALUE = 'none';
     private static final String MESSAGING_SESSION_ID_KEY = 'id';
+    private static final String RECORD_ID_KEY = 'id';
+    
+    // ===========================================
+    // TEMPLATE TYPE CONSTANTS
+    // ===========================================
+    private static final String TEMPLATE_TYPE_CONTEXTUAL = 'contextual';
+    private static final String TEMPLATE_TYPE_GROUNDED = 'grounded';
+    private static final String TEMPLATE_TYPE_CASE_SUMMARY = 'case_summary';
+    private static final String TEMPLATE_TYPE_WORK_SUMMARY = 'work_summary';
     
     // ===========================================
     // FORMATTING CONSTANTS
@@ -60,24 +80,26 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     // ===========================================
     // ERROR MESSAGE CONSTANTS
     // ===========================================
-    private static final String ERROR_TEMPLATE_IDS_NOT_CONFIGURED = 'Template IDs not configured. Please set Context Template ID and Grounded Template ID on the batch.';
+    private static final String ERROR_TEMPLATE_IDS_NOT_CONFIGURED = 'Template IDs not configured properly for this test type.';
     private static final String ERROR_BLANK_TEMPLATE_ID = 'Template ID cannot be blank';
     private static final String ERROR_NO_RESPONSE_GENERATED = 'No response generated from prompt template';
-    private static final String ERROR_NO_CONTEXT_RESULT = 'No context result returned';
-    private static final String ERROR_NO_GROUNDED_RESULT = 'No grounded result returned';
+    private static final String ERROR_NO_RESULT = 'No result returned from template';
     private static final String ERROR_FORMATTING_RESULT = 'Error formatting result: ';
     private static final String ERROR_PROCESSING_PROMPT_TEST = 'Error processing Prompt_Test__c: ';
     private static final String ERROR_EXECUTING_PROMPT = 'Failed to execute Einstein prompt (Template ID: ';
-    private static final String ERROR_GETTING_TRANSCRIPT = 'Error getting transcript: ';
-    private static final String ERROR_PARSING_JSON = 'Error parsing context result JSON: ';
+    private static final String ERROR_GETTING_CONTEXT = 'Error getting context data: ';
+    private static final String ERROR_PARSING_JSON = 'Error parsing result JSON: ';
     private static final String ERROR_UPDATING_RECORDS = 'Error updating test records: ';
     private static final String ERROR_UPDATING_BATCH_STATUS = 'Error updating batch status: ';
+    private static final String ERROR_UNSUPPORTED_TEST_TYPE = 'Unsupported test type: ';
     
     // ===========================================
     // DISPLAY FORMATTING CONSTANTS
     // ===========================================
     private static final String CONTEXT_HEADER = 'CONTEXTUAL SERVICE REPLIES' + DOUBLE_NEWLINE;
     private static final String GROUNDED_HEADER = 'GROUNDED SERVICE REPLIES' + DOUBLE_NEWLINE;
+    private static final String CASE_SUMMARY_HEADER = 'CASE SUMMARY' + DOUBLE_NEWLINE;
+    private static final String WORK_SUMMARY_HEADER = 'WORK SUMMARY' + DOUBLE_NEWLINE;
     private static final String RESPONSES_SECTION = 'RESPONSES:' + NEWLINE + '----------' + NEWLINE;
     private static final String SOURCE_INFO_SECTION = NEWLINE + 'Source Information:' + NEWLINE;
     private static final String RESPONSE_DELIMITER = '-----------' + NEWLINE;
@@ -111,11 +133,13 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
      */
     public Database.QueryLocator start(Database.BatchableContext bc) {
         return Database.getQueryLocator([
-            SELECT Id, Prompt_Test_Batch__c, Messaging_Session__c, Status__c, 
-                   Transcript__c, Contextual_Service_Replies_Result__c, Grounded_Service_Replies_Result__c,
+            SELECT Id, Prompt_Test_Batch__c, Messaging_Session__c, Case__c, Voice_Call__c, Status__c, 
+                   Transcript__c, Primary_Result__c, Secondary_Result__c,
                    Customer_Utterance__c, Utterance_Sequence__c,
-                   Prompt_Test_Batch__r.Context_Template_Id__c, 
-                   Prompt_Test_Batch__r.Grounded_Template_Id__c
+                   Prompt_Test_Batch__r.Test_Type__c,
+                   Prompt_Test_Batch__r.Primary_Template_Id__c,
+                   Prompt_Test_Batch__r.Secondary_Template_Id__c,
+                   Prompt_Test_Batch__r.Retriever_Id__c
             FROM Prompt_Test__c 
             WHERE Prompt_Test_Batch__c IN :batchIds
             AND Status__c = :STATUS_PENDING
@@ -160,16 +184,444 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         updateBatchStatus();
     }
     
-    // PRIVATE HELPER METHODS
+    // ===========================================
+    // CORE PROCESSING METHODS
+    // ===========================================
     
     /**
-     * @description Validates that both template IDs are configured on the batch
+     * @description Main dispatcher method that routes processing based on test type
+     * @param test Prompt_Test__c record to process
+     */
+    private void processPromptTest(Prompt_Test__c test) {
+        test.Status__c = STATUS_IN_PROGRESS;
+        String testType = getTestType(test);
+        
+        System.debug('Processing test type: ' + testType + ' for test ID: ' + test.Id);
+        
+        switch on testType {
+            when 'Service Replies' {
+                processServiceRepliesTest(test);
+            }
+            when 'Case Summary' {
+                processCaseSummaryTest(test);
+            }
+            when 'Work Summary' {
+                processWorkSummaryTest(test);
+            }
+            when else {
+                // Backwards compatibility for null test types (assume Service Replies)
+                processServiceRepliesTest(test);
+            }
+        }
+    }
+    
+    /**
+     * @description Gets the test type, providing backwards compatibility
+     * @param test Prompt_Test__c record
+     * @return String test type
+     */
+    private String getTestType(Prompt_Test__c test) {
+        String testType = test.Prompt_Test_Batch__r.Test_Type__c;
+        return String.isNotBlank(testType) ? testType : TEST_TYPE_SERVICE_REPLIES;
+    }
+    
+    /**
+     * @description Processes Service Replies tests (contextual + grounded templates)
+     * @param test Prompt_Test__c record to process
+     */
+    private void processServiceRepliesTest(Prompt_Test__c test) {
+        System.debug('Processing Service Replies test');
+        
+        String transcript = getMessagingSessionTranscript(test);
+        
+        // Execute primary (contextual) template
+        String primaryTemplateId = getPrimaryTemplateId(test);
+        if (String.isNotBlank(primaryTemplateId)) {
+            String contextResult = executePromptTemplate(
+                primaryTemplateId,
+                test,
+                transcript,
+                null,
+                null,
+                TEMPLATE_TYPE_CONTEXTUAL
+            );
+            
+            test.Primary_Result__c = formatServiceRepliesResult(contextResult, TEMPLATE_TYPE_CONTEXTUAL);
+            
+            // Extract search query for grounded template
+            String searchQuery = extractSearchQueryFromResult(contextResult);
+            
+            // Execute secondary (grounded) template if configured and search query is valid
+            String secondaryTemplateId = getSecondaryTemplateId(test);
+            if (String.isNotBlank(secondaryTemplateId) && isValidSearchQuery(searchQuery)) {
+                String groundedResult = executePromptTemplate(
+                    secondaryTemplateId,
+                    test,
+                    transcript,
+                    searchQuery,
+                    getRetrieverId(test),
+                    TEMPLATE_TYPE_GROUNDED
+                );
+                
+                test.Secondary_Result__c = formatServiceRepliesResult(groundedResult, TEMPLATE_TYPE_GROUNDED);
+            } else {
+                String skipReason = buildGroundedSkipMessage(searchQuery);
+                test.Secondary_Result__c = skipReason;
+            }
+        }
+    }
+    
+    /**
+     * @description Processes Case Summary tests (single template)
+     * @param test Prompt_Test__c record to process
+     */
+    private void processCaseSummaryTest(Prompt_Test__c test) {
+        System.debug('Processing Case Summary test');
+        
+        String caseContext = getCaseContext(test);
+        String primaryTemplateId = getPrimaryTemplateId(test);
+        
+        if (String.isNotBlank(primaryTemplateId)) {
+            String result = executePromptTemplate(
+                primaryTemplateId,
+                test,
+                caseContext,
+                null,
+                null,
+                TEMPLATE_TYPE_CASE_SUMMARY
+            );
+            
+            test.Primary_Result__c = formatGenericResult(result, CASE_SUMMARY_HEADER);
+        }
+    }
+    
+    /**
+     * @description Processes Work Summary tests (single template, messaging or voice call)
+     * @param test Prompt_Test__c record to process
+     */
+    private void processWorkSummaryTest(Prompt_Test__c test) {
+        System.debug('Processing Work Summary test');
+        
+        String workContext = getWorkContext(test);
+        String primaryTemplateId = getPrimaryTemplateId(test);
+        
+        if (String.isNotBlank(primaryTemplateId)) {
+            String result = executePromptTemplate(
+                primaryTemplateId,
+                test,
+                workContext,
+                null,
+                null,
+                TEMPLATE_TYPE_WORK_SUMMARY
+            );
+            
+            test.Primary_Result__c = formatGenericResult(result, WORK_SUMMARY_HEADER);
+        }
+    }
+    
+    // ===========================================
+    // CONTEXT EXTRACTION METHODS
+    // ===========================================
+    
+    /**
+     * @description Gets messaging session transcript for Service Replies and Work Summary
+     * @param test Prompt_Test__c record
+     * @return String transcript content
+     */
+    private String getMessagingSessionTranscript(Prompt_Test__c test) {
+        String transcript = test.Transcript__c;
+        if (String.isBlank(transcript) && test.Messaging_Session__c != null) {
+            transcript = getTranscriptFromSession(test.Messaging_Session__c);
+            test.Transcript__c = transcript;
+        }
+        return transcript;
+    }
+    
+    /**
+     * @description Gets case context for Case Summary tests
+     * @param test Prompt_Test__c record
+     * @return String formatted case context
+     */
+    private String getCaseContext(Prompt_Test__c test) {
+        try {
+            if (test.Case__c == null) {
+                return '';
+            }
+            
+            List<Case> cases = [
+                SELECT Id, CaseNumber, Subject, Description, Status, Priority, Reason, Type,
+                       Account.Name, Contact.Name, Owner.Name, CreatedDate, ClosedDate,
+                       Origin, IsClosed, IsEscalated
+                FROM Case 
+                WHERE Id = :test.Case__c
+                LIMIT 1
+            ];
+            
+            if (cases.isEmpty()) {
+                return '';
+            }
+            
+            Case caseRecord = cases[0];
+            String context = 'Case Number: ' + caseRecord.CaseNumber + '\n';
+            context += 'Subject: ' + (caseRecord.Subject ?? '') + '\n';
+            context += 'Description: ' + (caseRecord.Description ?? '') + '\n';
+            context += 'Status: ' + (caseRecord.Status ?? '') + '\n';
+            context += 'Priority: ' + (caseRecord.Priority ?? '') + '\n';
+            context += 'Type: ' + (caseRecord.Type ?? '') + '\n';
+            context += 'Reason: ' + (caseRecord.Reason ?? '') + '\n';
+            context += 'Account: ' + (caseRecord.Account?.Name ?? '') + '\n';
+            context += 'Contact: ' + (caseRecord.Contact?.Name ?? '') + '\n';
+            context += 'Owner: ' + (caseRecord.Owner?.Name ?? '') + '\n';
+            context += 'Created: ' + (caseRecord.CreatedDate?.format() ?? '') + '\n';
+            context += 'Origin: ' + (caseRecord.Origin ?? '') + '\n';
+            context += 'Is Closed: ' + caseRecord.IsClosed + '\n';
+            context += 'Is Escalated: ' + caseRecord.IsEscalated + '\n';
+            
+            return context;
+            
+        } catch (Exception e) {
+            System.debug(ERROR_GETTING_CONTEXT + e.getMessage());
+            return ERROR_GETTING_CONTEXT + e.getMessage();
+        }
+    }
+    
+    /**
+     * @description Gets work context for Work Summary tests (messaging session or voice call)
+     * @param test Prompt_Test__c record
+     * @return String formatted work context
+     */
+    private String getWorkContext(Prompt_Test__c test) {
+        // For messaging sessions, use transcript
+        if (test.Messaging_Session__c != null) {
+            return getMessagingSessionTranscript(test);
+        }
+        
+        // For voice calls, get call details
+        if (test.Voice_Call__c != null) {
+            return getVoiceCallContext(test.Voice_Call__c);
+        }
+        
+        return '';
+    }
+    
+    /**
+     * @description Gets voice call context
+     * @param voiceCallId Voice Call ID
+     * @return String formatted voice call context
+     */
+    private String getVoiceCallContext(Id voiceCallId) {
+        try {
+            List<VoiceCall> voiceCalls = [
+                SELECT Id, Name, CallType, CallStartDateTime, CallEndDateTime, 
+                       CallDurationInSeconds, FromPhoneNumber, ToPhoneNumber,
+                       CallDisposition, Description, Owner.Name
+                FROM VoiceCall 
+                WHERE Id = :voiceCallId
+                LIMIT 1
+            ];
+            
+            if (voiceCalls.isEmpty()) {
+                return '';
+            }
+            
+            VoiceCall call = voiceCalls[0];
+            String context = 'Call Name: ' + (call.Name ?? '') + '\n';
+            context += 'Call Type: ' + (call.CallType ?? '') + '\n';
+            context += 'Start Time: ' + (call.CallStartDateTime?.format() ?? '') + '\n';
+            context += 'End Time: ' + (call.CallEndDateTime?.format() ?? '') + '\n';
+            context += 'Duration (seconds): ' + (call.CallDurationInSeconds ?? 0) + '\n';
+            context += 'From: ' + (call.FromPhoneNumber ?? '') + '\n';
+            context += 'To: ' + (call.ToPhoneNumber ?? '') + '\n';
+            context += 'Disposition: ' + (call.CallDisposition ?? '') + '\n';
+            context += 'Description: ' + (call.Description ?? '') + '\n';
+            context += 'Owner: ' + (call.Owner?.Name ?? '') + '\n';
+            
+            return context;
+            
+        } catch (Exception e) {
+            System.debug(ERROR_GETTING_CONTEXT + e.getMessage());
+            return ERROR_GETTING_CONTEXT + e.getMessage();
+        }
+    }
+    
+    // ===========================================
+    // TEMPLATE EXECUTION METHODS
+    // ===========================================
+    
+    /**
+     * @description Executes Einstein prompt template with flexible input parameters
+     * @param templateId Einstein prompt template ID
+     * @param test Prompt test record for context
+     * @param contextData Main context data (transcript, case context, etc.)
+     * @param searchQuery Search query for grounded templates
+     * @param retrieverId Retriever ID for grounded templates
+     * @param templateType Type of template being executed
+     * @return String response from Einstein prompt template
+     */
+    private String executePromptTemplate(String templateId, Prompt_Test__c test, String contextData, String searchQuery, String retrieverId, String templateType) {
+        try {
+            System.debug('Executing template: ' + templateId + ' (type: ' + templateType + ')');
+            
+            if (String.isBlank(templateId)) {
+                throw new IllegalArgumentException(ERROR_BLANK_TEMPLATE_ID);
+            }
+            
+            // Build input parameters based on template type and context
+            ConnectApi.EinsteinPromptTemplateGenerationsInput promptGenerationsInput = new ConnectApi.EinsteinPromptTemplateGenerationsInput();
+            promptGenerationsInput.inputParams = buildInputParameters(test, contextData, searchQuery, retrieverId, templateType);
+            
+            // Configure prompt generation parameters
+            promptGenerationsInput.additionalConfig = new ConnectApi.EinsteinLlmAdditionalConfigInput();
+            promptGenerationsInput.additionalConfig.numGenerations = NUM_GENERATIONS;
+            promptGenerationsInput.additionalConfig.enablePiiMasking = true;
+            promptGenerationsInput.additionalConfig.applicationName = APPLICATION_NAME;
+            promptGenerationsInput.isPreview = false;
+            
+            // Call the service to generate messages
+            ConnectApi.EinsteinPromptTemplateGenerationsRepresentation generationsOutput = 
+                ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate(templateId, promptGenerationsInput);
+            
+            // Extract the generated text
+            if (generationsOutput != null && generationsOutput.generations != null && !generationsOutput.generations.isEmpty()) {
+                return generationsOutput.generations[0].text;
+            }
+            
+            return ERROR_NO_RESPONSE_GENERATED;
+            
+        } catch (Exception e) {
+            String errorMsg = ERROR_EXECUTING_PROMPT + templateId + ', type: ' + templateType + '): ' + e.getMessage();
+            System.debug(errorMsg);
+            throw new CalloutException(errorMsg);
+        }
+    }
+    
+    /**
+     * @description Builds input parameters for Einstein prompt template
+     * @param test Prompt test record
+     * @param contextData Main context data
+     * @param searchQuery Search query for grounded templates
+     * @param retrieverId Retriever ID for grounded templates
+     * @param templateType Type of template being executed
+     * @return Map of input parameters
+     */
+    private Map<String, ConnectApi.WrappedValue> buildInputParameters(Prompt_Test__c test, String contextData, String searchQuery, String retrieverId, String templateType) {
+        Map<String, ConnectApi.WrappedValue> inputParams = new Map<String, ConnectApi.WrappedValue>();
+        
+        // Add the main context data with appropriate parameter name
+        ConnectApi.WrappedValue contextValue = new ConnectApi.WrappedValue();
+        contextValue.value = contextData;
+        
+        switch on templateType {
+            when 'contextual', 'grounded' {
+                inputParams.put(INPUT_CONVERSATION_TRANSCRIPT, contextValue);
+                // Add messaging session reference
+                if (test.Messaging_Session__c != null) {
+                    Map<String, String> sessionInput = new Map<String, String>();
+                    sessionInput.put(MESSAGING_SESSION_ID_KEY, String.valueOf(test.Messaging_Session__c));
+                    ConnectApi.WrappedValue sessionValue = new ConnectApi.WrappedValue();
+                    sessionValue.value = sessionInput;
+                    inputParams.put(INPUT_MESSAGING_SESSION, sessionValue);
+                }
+            }
+            when 'case_summary' {
+                // Case Summary templates expect caseToSummarize parameter with case reference
+                if (test.Case__c != null) {
+                    Map<String, String> caseInput = new Map<String, String>();
+                    caseInput.put(RECORD_ID_KEY, String.valueOf(test.Case__c));
+                    ConnectApi.WrappedValue caseValue = new ConnectApi.WrappedValue();
+                    caseValue.value = caseInput;
+                    inputParams.put(INPUT_CASE_TO_SUMMARIZE, caseValue);
+                }
+            }
+            when 'work_summary' {
+                // Work Summary templates work directly with object references
+                if (test.Messaging_Session__c != null) {
+                    // For messaging sessions, only provide the session reference
+                    Map<String, String> sessionInput = new Map<String, String>();
+                    sessionInput.put(MESSAGING_SESSION_ID_KEY, String.valueOf(test.Messaging_Session__c));
+                    ConnectApi.WrappedValue sessionValue = new ConnectApi.WrappedValue();
+                    sessionValue.value = sessionInput;
+                    inputParams.put(INPUT_MESSAGING_SESSION, sessionValue);
+                } else if (test.Voice_Call__c != null) {
+                    // For voice calls, only provide the voice call reference
+                    Map<String, String> voiceCallInput = new Map<String, String>();
+                    voiceCallInput.put(RECORD_ID_KEY, String.valueOf(test.Voice_Call__c));
+                    ConnectApi.WrappedValue voiceCallValue = new ConnectApi.WrappedValue();
+                    voiceCallValue.value = voiceCallInput;
+                    inputParams.put(INPUT_VOICE_CALL, voiceCallValue);
+                }
+            }
+        }
+        
+        // Add retriever and search query for grounded templates
+        if (templateType == 'grounded' && String.isNotBlank(retrieverId)) {
+            ConnectApi.WrappedValue retrieverValue = new ConnectApi.WrappedValue();
+            retrieverValue.value = retrieverId;
+            inputParams.put(INPUT_RETRIEVER_ID_OR_NAME, retrieverValue);
+            
+            ConnectApi.WrappedValue searchQueryValue = new ConnectApi.WrappedValue();
+            searchQueryValue.value = String.isNotBlank(searchQuery) ? searchQuery : '';
+            inputParams.put(INPUT_SEARCH_QUERY, searchQueryValue);
+        }
+        
+        return inputParams;
+    }
+    
+    // ===========================================
+    // HELPER METHODS
+    // ===========================================
+    
+    /**
+     * @description Gets primary template ID
+     * @param test Prompt_Test__c record
+     * @return String primary template ID
+     */
+    private String getPrimaryTemplateId(Prompt_Test__c test) {
+        return test.Prompt_Test_Batch__r.Primary_Template_Id__c;
+    }
+    
+    /**
+     * @description Gets secondary template ID
+     * @param test Prompt_Test__c record
+     * @return String secondary template ID
+     */
+    private String getSecondaryTemplateId(Prompt_Test__c test) {
+        return test.Prompt_Test_Batch__r.Secondary_Template_Id__c;
+    }
+    
+    /**
+     * @description Gets retriever ID with default fallback
+     * @param test Prompt_Test__c record
+     * @return String retriever ID
+     */
+    private String getRetrieverId(Prompt_Test__c test) {
+        return String.isNotBlank(test.Prompt_Test_Batch__r.Retriever_Id__c) 
+            ? test.Prompt_Test_Batch__r.Retriever_Id__c 
+            : DEFAULT_RETRIEVER_ID;
+    }
+    
+    /**
+     * @description Validates template configuration based on test type
      * @param test Prompt_Test__c record to validate
      * @return Boolean indicating if templates are properly configured
      */
     private Boolean validateTemplateConfiguration(Prompt_Test__c test) {
-        return String.isNotBlank(test.Prompt_Test_Batch__r.Context_Template_Id__c) && 
-               String.isNotBlank(test.Prompt_Test_Batch__r.Grounded_Template_Id__c);
+        String testType = getTestType(test);
+        String primaryTemplateId = getPrimaryTemplateId(test);
+        
+        // Primary template is always required
+        if (String.isBlank(primaryTemplateId)) {
+            return false;
+        }
+        
+        // For Service Replies, both primary and secondary templates are required
+        if (testType == TEST_TYPE_SERVICE_REPLIES) {
+            String secondaryTemplateId = getSecondaryTemplateId(test);
+            return String.isNotBlank(secondaryTemplateId);
+        }
+        
+        // For other test types, only primary template is required
+        return true;
     }
     
     /**
@@ -180,91 +632,13 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private void setTestFailed(Prompt_Test__c test, String errorMessage) {
         test.Status__c = STATUS_FAILED;
         test.Result__c = ERROR_PREFIX + errorMessage;
-    }
-    
-    /**
-     * @description Processes a single prompt test through both context and grounded templates
-     * @param test Prompt_Test__c record to process
-     */
-    private void processPromptTest(Prompt_Test__c test) {
-        test.Status__c = STATUS_IN_PROGRESS;
-        
-        String transcript = getOrRetrieveTranscript(test);
-        String searchQuery = processContextTemplate(test, transcript);
-        processGroundedTemplate(test, transcript, searchQuery);
-    }
-    
-    /**
-     * @description Gets existing transcript or retrieves it from messaging session
-     * @param test Prompt_Test__c record containing transcript and session info
-     * @return String transcript content
-     */
-    private String getOrRetrieveTranscript(Prompt_Test__c test) {
-        String transcript = test.Transcript__c;
-        if (String.isBlank(transcript) && test.Messaging_Session__c != null) {
-            transcript = getTranscriptFromSession(test.Messaging_Session__c);
-            test.Transcript__c = transcript;
-        }
-        return transcript;
-    }
-    
-    /**
-     * @description Processes the context template and extracts search query
-     * @param test Prompt_Test__c record to process
-     * @param transcript Conversation transcript
-     * @return String extracted search query for grounded template
-     */
-    private String processContextTemplate(Prompt_Test__c test, String transcript) {
-        String searchQuery = '';
-        
-        if (String.isNotBlank(test.Prompt_Test_Batch__r.Context_Template_Id__c)) {
-            String contextResult = executeEinsteinPrompt(
-                test.Prompt_Test_Batch__r.Context_Template_Id__c,
-                transcript,
-                null,
-                test.Messaging_Session__c,
-                null
-            );
-            
-            test.Contextual_Service_Replies_Result__c = formatContextResult(contextResult);
-            searchQuery = extractSearchQueryFromContextResult(contextResult);
-        }
-        
-        return searchQuery;
-    }
-    
-    /**
-     * @description Processes the grounded template with search query
-     * Only executes if context template returned a valid search query (not blank and not 'none')
-     * @param test Prompt_Test__c record to process
-     * @param transcript Conversation transcript
-     * @param searchQuery Search query extracted from context template
-     */
-    private void processGroundedTemplate(Prompt_Test__c test, String transcript, String searchQuery) {
-        if (String.isNotBlank(test.Prompt_Test_Batch__r.Grounded_Template_Id__c)) {
-            if (isValidSearchQuery(searchQuery)) {
-                String groundedResult = executeEinsteinPrompt(
-                    test.Prompt_Test_Batch__r.Grounded_Template_Id__c,
-                    transcript,
-                    searchQuery,
-                    test.Messaging_Session__c,
-                    DEFAULT_RETRIEVER_ID
-                );
-                
-                test.Grounded_Service_Replies_Result__c = formatGroundedResult(groundedResult);
-                System.debug('Grounded template processed with search query: ' + searchQuery);
-            } else {
-                String skipReason = String.isBlank(searchQuery) ? 'empty/blank' : '"' + searchQuery + '"';
-                test.Grounded_Service_Replies_Result__c = buildGroundedSkipMessage(skipReason);
-                System.debug('Grounded template skipped: Context template returned ' + skipReason + ' search query');
-            }
-        }
+        test.Primary_Result__c = ERROR_PREFIX + errorMessage;
     }
     
     /**
      * @description Validates if a search query is valid for grounded template processing
      * @param searchQuery Search query to validate
-     * @return Boolean indicating if search query is valid (not blank and not 'none')
+     * @return Boolean indicating if search query is valid
      */
     private Boolean isValidSearchQuery(String searchQuery) {
         return String.isNotBlank(searchQuery) && 
@@ -273,11 +647,63 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     
     /**
      * @description Builds a skip message for grounded template processing
-     * @param skipReason Reason why the grounded template was skipped
+     * @param searchQuery Search query that caused the skip
      * @return String formatted skip message
      */
-    private String buildGroundedSkipMessage(String skipReason) {
+    private String buildGroundedSkipMessage(String searchQuery) {
+        String skipReason = String.isBlank(searchQuery) ? 'empty/blank' : '"' + searchQuery + '"';
         return 'Grounded template skipped: Context template returned no valid search query (result was ' + skipReason + ')';
+    }
+    
+    /**
+     * @description Extracts search query from contextual template result
+     * @param contextResult Raw JSON result from context template
+     * @return String search query for use in grounded template
+     */
+    private String extractSearchQueryFromResult(String contextResult) {
+        try {
+            if (String.isBlank(contextResult)) {
+                return '';
+            }
+            
+            Map<String, Object> resultMap = (Map<String, Object>) JSON.deserializeUntyped(contextResult);
+            
+            if (resultMap.containsKey(JSON_SEARCH_QUERY)) {
+                String searchQuery = String.valueOf(resultMap.get(JSON_SEARCH_QUERY));
+                return searchQuery;
+            }
+            
+        } catch (Exception e) {
+            System.debug(ERROR_PARSING_JSON + e.getMessage());
+            System.debug('Context result was: ' + contextResult);
+        }
+        
+        return '';
+    }
+    
+    /**
+     * @description Retrieves transcript from messaging session
+     * @param sessionId Messaging Session ID
+     * @return String transcript content or empty string if not found
+     */
+    private String getTranscriptFromSession(Id sessionId) {
+        try {
+            List<MessagingSession> sessions = [
+                SELECT Id, Name, ConversationId, Conversation.ConversationIdentifier
+                FROM MessagingSession 
+                WHERE Id = :sessionId
+                LIMIT 1
+            ];
+            
+            if (!sessions.isEmpty() && sessions[0].Conversation != null) {
+                return ziip_PromptTestUtil_Controller.getConversationEntries(
+                    sessions[0].Conversation.ConversationIdentifier
+                );
+            }
+        } catch (Exception e) {
+            System.debug(ERROR_GETTING_CONTEXT + e.getMessage());
+        }
+        return '';
     }
     
     /**
@@ -319,6 +745,38 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         }
     }
     
+    // ===========================================
+    // RESULT FORMATTING METHODS
+    // ===========================================
+    
+    /**
+     * @description Formats Service Replies results (contextual or grounded)
+     * @param rawResult Raw JSON result from template
+     * @param templateType Type of template ('contextual' or 'grounded')
+     * @return String formatted result
+     */
+    private String formatServiceRepliesResult(String rawResult, String templateType) {
+        if (templateType == 'contextual') {
+            return formatContextResult(rawResult);
+        } else if (templateType == 'grounded') {
+            return formatGroundedResult(rawResult);
+        }
+        return rawResult;
+    }
+    
+    /**
+     * @description Formats generic results for Case Summary and Work Summary
+     * @param rawResult Raw result from template
+     * @param header Header to prepend to result
+     * @return String formatted result
+     */
+    private String formatGenericResult(String rawResult, String header) {
+        if (String.isBlank(rawResult)) {
+            return ERROR_NO_RESULT;
+        }
+        return header + rawResult;
+    }
+    
     /**
      * @description Formats the context template result for display
      * @param contextResult Raw JSON result from context template
@@ -327,7 +785,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private String formatContextResult(String contextResult) {
         try {
             if (String.isBlank(contextResult)) {
-                return ERROR_NO_CONTEXT_RESULT;
+                return ERROR_NO_RESULT;
             }
             
             Map<String, Object> resultMap = (Map<String, Object>) JSON.deserializeUntyped(contextResult);
@@ -335,15 +793,15 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             
             // Extract key fields using constants
             if (resultMap.containsKey(JSON_SEARCH_QUERY)) {
-                formatted += 'Search Query: ' + String.valueOf(resultMap.get(JSON_SEARCH_QUERY)) + '\n';
+                formatted += SEARCH_QUERY_LABEL + String.valueOf(resultMap.get(JSON_SEARCH_QUERY)) + NEWLINE;
             }
             
             if (resultMap.containsKey(JSON_RECENT_SPEAKER)) {
-                formatted += 'Recent Speaker: ' + String.valueOf(resultMap.get(JSON_RECENT_SPEAKER)) + '\n';
+                formatted += RECENT_SPEAKER_LABEL + String.valueOf(resultMap.get(JSON_RECENT_SPEAKER)) + NEWLINE;
             }
             
             if (resultMap.containsKey(JSON_ISSUE_ADDRESSED)) {
-                formatted += 'Issue Addressed by Agent: ' + String.valueOf(resultMap.get(JSON_ISSUE_ADDRESSED)) + '\n\n';
+                formatted += ISSUE_ADDRESSED_LABEL + String.valueOf(resultMap.get(JSON_ISSUE_ADDRESSED)) + DOUBLE_NEWLINE;
             }
             
             // Extract responses
@@ -351,7 +809,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 List<Object> responses = (List<Object>) resultMap.get(JSON_RESPONSES);
                 formatted += RESPONSES_SECTION;
                 
-                Integer responseCount = 1;
+                Integer responseCount = RESPONSE_COUNTER_START;
                 for (Object responseObj : responses) {
                     if (responseObj instanceof Map<String, Object>) {
                         Map<String, Object> response = (Map<String, Object>) responseObj;
@@ -359,7 +817,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                         if (response.containsKey(JSON_RESPONSE)) {
                             formatted += String.valueOf(response.get(JSON_RESPONSE));
                         }
-                        formatted += '\n\n';
+                        formatted += DOUBLE_NEWLINE;
                         responseCount++;
                     }
                 }
@@ -369,7 +827,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             
         } catch (Exception e) {
             System.debug(ERROR_FORMATTING_RESULT + e.getMessage());
-            return ERROR_FORMATTING_RESULT + e.getMessage() + '\n\nRaw Result:\n' + contextResult;
+            return ERROR_FORMATTING_RESULT + e.getMessage() + RAW_RESULT_PREFIX + contextResult;
         }
     }
     
@@ -381,7 +839,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private String formatGroundedResult(String groundedResult) {
         try {
             if (String.isBlank(groundedResult)) {
-                return ERROR_NO_GROUNDED_RESULT;
+                return ERROR_NO_RESULT;
             }
             
             Map<String, Object> resultMap = (Map<String, Object>) JSON.deserializeUntyped(groundedResult);
@@ -391,7 +849,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             if (resultMap.containsKey(JSON_RESPONSES) && resultMap.get(JSON_RESPONSES) instanceof List<Object>) {
                 List<Object> responses = (List<Object>) resultMap.get(JSON_RESPONSES);
                 
-                Integer responseCount = 1;
+                Integer responseCount = RESPONSE_COUNTER_START;
                 for (Object responseObj : responses) {
                     if (responseObj instanceof Map<String, Object>) {
                         Map<String, Object> response = (Map<String, Object>) responseObj;
@@ -447,141 +905,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             
         } catch (Exception e) {
             System.debug(ERROR_FORMATTING_RESULT + e.getMessage());
-            return ERROR_FORMATTING_RESULT + e.getMessage() + '\n\nRaw Result:\n' + groundedResult;
-        }
-    }
-    
-    /**
-     * @description Extracts search query from context template result
-     * @param contextResult Raw JSON result from context template
-     * @return String search query for use in grounded template (preserves 'none' value)
-     */
-    private String extractSearchQueryFromContextResult(String contextResult) {
-        try {
-            if (String.isBlank(contextResult)) {
-                return '';
-            }
-            
-            Map<String, Object> resultMap = (Map<String, Object>) JSON.deserializeUntyped(contextResult);
-            
-            // Extract the search_query field using constant
-            if (resultMap.containsKey(JSON_SEARCH_QUERY)) {
-                String searchQuery = String.valueOf(resultMap.get(JSON_SEARCH_QUERY));
-                
-                // Return the actual search query value including 'none'
-                // The calling method will decide how to handle it
-                return searchQuery;
-            }
-            
-        } catch (Exception e) {
-            System.debug(ERROR_PARSING_JSON + e.getMessage());
-            System.debug('Context result was: ' + contextResult);
-        }
-        
-        return '';
-    }
-    
-    /**
-     * @description Retrieves transcript from messaging session
-     * @param sessionId Messaging Session ID
-     * @return String transcript content or empty string if not found
-     */
-    private String getTranscriptFromSession(Id sessionId) {
-        try {
-            List<MessagingSession> sessions = [
-                SELECT Id, Name, ConversationId, Conversation.ConversationIdentifier
-                FROM MessagingSession 
-                WHERE Id = :sessionId
-                LIMIT 1
-            ];
-            
-            if (!sessions.isEmpty() && sessions[0].Conversation != null) {
-                return ziip_PromptTestUtil_Controller.getConversationEntries(
-                    sessions[0].Conversation.ConversationIdentifier
-                );
-            }
-        } catch (Exception e) {
-            System.debug(ERROR_GETTING_TRANSCRIPT + e.getMessage());
-        }
-        return '';
-    }
-    
-    /**
-     * @description Executes Einstein prompt template with provided parameters
-     * @param templateId Einstein prompt template ID
-     * @param transcript Conversation transcript
-     * @param searchQuery Search query for grounded templates
-     * @param sessionId Messaging session ID
-     * @param retrieverId Retriever ID for grounded templates
-     * @return String response from Einstein prompt template
-     */
-    private String executeEinsteinPrompt(String templateId, String transcript, String searchQuery, Id sessionId, String retrieverId) {
-        try {
-            // Debug inputs
-            System.debug('Template ID: ' + templateId);
-            System.debug('Transcript: ' + transcript);
-            System.debug('Search Query: ' + searchQuery);
-            System.debug('Session ID: ' + sessionId);
-            System.debug('Retriever ID: ' + retrieverId);
-
-            // Validate template ID is not empty
-            if (String.isBlank(templateId)) {
-                throw new IllegalArgumentException(ERROR_BLANK_TEMPLATE_ID);
-            }
-            
-            // Prepare input for generating prompt template
-            ConnectApi.EinsteinPromptTemplateGenerationsInput promptGenerationsInput = new ConnectApi.EinsteinPromptTemplateGenerationsInput();
-            Map<String, ConnectApi.WrappedValue> inputParams = new Map<String, ConnectApi.WrappedValue>();
-            
-            // Set conversation transcript input using constant
-            ConnectApi.WrappedValue transcriptInputValue = new ConnectApi.WrappedValue();
-            transcriptInputValue.value = transcript;
-            inputParams.put(INPUT_CONVERSATION_TRANSCRIPT, transcriptInputValue);
-
-            // Set retriever and search query for grounded templates
-            if (String.isNotBlank(retrieverId)) {
-                ConnectApi.WrappedValue retrieverIdOrNameValue = new ConnectApi.WrappedValue();
-                retrieverIdOrNameValue.value = retrieverId;
-                inputParams.put(INPUT_RETRIEVER_ID_OR_NAME, retrieverIdOrNameValue);
-                System.debug(INPUT_RETRIEVER_ID_OR_NAME + ': ' + retrieverId);
-                
-                // Add search query (required for grounded template, even if empty)
-                ConnectApi.WrappedValue searchQueryInputValue = new ConnectApi.WrappedValue();
-                searchQueryInputValue.value = String.isNotBlank(searchQuery) ? searchQuery : '';
-                inputParams.put(INPUT_SEARCH_QUERY, searchQueryInputValue);
-                System.debug('Search query set: ' + searchQueryInputValue.value);
-            }
-            
-            // Set messaging session input using constant
-            Map<String, String> messagingSessionInput = new Map<String, String>();
-            messagingSessionInput.put('id', String.valueOf(sessionId));
-            ConnectApi.WrappedValue messagingSessionInputValue = new ConnectApi.WrappedValue();
-            messagingSessionInputValue.value = messagingSessionInput;
-            inputParams.put(INPUT_MESSAGING_SESSION, messagingSessionInputValue);
-            
-            // Configure prompt generation parameters using constants
-            promptGenerationsInput.inputParams = inputParams;
-            promptGenerationsInput.additionalConfig = new ConnectApi.EinsteinLlmAdditionalConfigInput();
-            promptGenerationsInput.additionalConfig.numGenerations = NUM_GENERATIONS;
-            promptGenerationsInput.additionalConfig.enablePiiMasking = false;
-            promptGenerationsInput.additionalConfig.applicationName = APPLICATION_NAME;
-            promptGenerationsInput.isPreview = false;
-            
-            // Call the service to generate messages for the prompt template
-            ConnectApi.EinsteinPromptTemplateGenerationsRepresentation generationsOutput = 
-                ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate(templateId, promptGenerationsInput);
-            
-            // Extract the generated text
-            if (generationsOutput != null && generationsOutput.generations != null && !generationsOutput.generations.isEmpty()) {
-                return generationsOutput.generations[0].text;
-            }
-            
-            return ERROR_NO_RESPONSE_GENERATED;
-            
-        } catch (Exception e) {
-            String errorMsg = ERROR_EXECUTING_PROMPT + templateId + '): ' + e.getMessage();
-            System.debug(errorMsg);
-            throw new CalloutException(errorMsg);
+            return ERROR_FORMATTING_RESULT + e.getMessage() + RAW_RESULT_PREFIX + groundedResult;
         }
     }
 }

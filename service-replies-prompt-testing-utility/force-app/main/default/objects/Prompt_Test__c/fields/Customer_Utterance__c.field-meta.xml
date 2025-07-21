@@ -3,6 +3,7 @@
     <fullName>Customer_Utterance__c</fullName>
     <description>The specific customer message that triggered this prompt test</description>
     <label>Customer Utterance</label>
+    <required>false</required>
     <trackTrending>false</trackTrending>
     <type>TextArea</type>
 </CustomField>
