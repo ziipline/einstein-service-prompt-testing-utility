@@ -1,0 +1,12 @@
+.test-type-card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    min-height: 160px;
+}
+
+.test-type-card:hover {
+    border-color: #1589ee;
+    box-shadow: 0 2px 4px 0 rgba(0,0,0,0.10);
+    transform: translateY(-1px);
+}

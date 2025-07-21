@@ -446,19 +446,215 @@ public with sharing class ziip_PromptTestUtil_Controller {
 
     
     @AuraEnabled
+    public static Map<String, Object> getCases(
+        Integer pageSize, 
+        Integer pageNumber, 
+        Date startDate, 
+        Date endDate, 
+        String subject,
+        String status
+    ) {
+        // Calculate offset for pagination
+        Integer offset = (pageNumber - 1) * pageSize;
+        
+        // Build dynamic WHERE clause
+        String whereClause = '1=1';
+        
+        if (startDate != null) {
+            whereClause += ' AND CreatedDate >= :startDate';
+        }
+        
+        if (endDate != null) {
+            whereClause += ' AND CreatedDate <= :endDate';
+        }
+        
+        if (String.isNotBlank(subject)) {
+            String searchPattern = '%' + subject + '%';
+            whereClause += ' AND Subject LIKE :searchPattern';
+        }
+        
+        if (String.isNotBlank(status)) {
+            whereClause += ' AND Status = :status';
+        }
+        
+        // Get total count first
+        String countQuery = 'SELECT COUNT() FROM Case WHERE ' + whereClause;
+        Integer totalCount = Database.countQuery(countQuery);
+        
+        // Get paginated Cases
+        String mainQuery = 'SELECT Id, CaseNumber, Subject, Status, CreatedDate, Priority, Origin ' +
+                          'FROM Case ' +
+                          'WHERE ' + whereClause + ' ' +
+                          'ORDER BY CreatedDate DESC ' +
+                          'LIMIT :pageSize OFFSET :offset';
+        
+        List<Case> cases = Database.query(mainQuery);
+        
+        List<Map<String, Object>> caseData = new List<Map<String, Object>>();
+        for (Case caseRecord : cases) {
+            caseData.add(new Map<String, Object>{
+                'Id' => caseRecord.Id,
+                'CaseNumber' => caseRecord.CaseNumber,
+                'Subject' => caseRecord.Subject,
+                'Status' => caseRecord.Status,
+                'CreatedDate' => caseRecord.CreatedDate,
+                'Priority' => caseRecord.Priority,
+                'Origin' => caseRecord.Origin
+            });
+        }
+        
+        // Calculate pagination info
+        Integer totalPages = (Integer) Math.ceil((Decimal) totalCount / pageSize);
+        Boolean hasNext = pageNumber < totalPages;
+        Boolean hasPrevious = pageNumber > 1;
+        
+        return new Map<String, Object>{
+            'cases' => caseData,
+            'pagination' => new Map<String, Object>{
+                'totalCount' => totalCount,
+                'totalPages' => totalPages,
+                'currentPage' => pageNumber,
+                'pageSize' => pageSize,
+                'hasNext' => hasNext,
+                'hasPrevious' => hasPrevious
+            }
+        };
+    }
+
+    @AuraEnabled
+    public static Map<String, Object> getVoiceCalls(
+        Integer pageSize, 
+        Integer pageNumber, 
+        Date startDate, 
+        Date endDate, 
+        String callType,
+        String status
+    ) {
+        // Calculate offset for pagination
+        Integer offset = (pageNumber - 1) * pageSize;
+        
+        // Build dynamic WHERE clause
+        String whereClause = '1=1';
+        
+        if (startDate != null) {
+            whereClause += ' AND CreatedDate >= :startDate';
+        }
+        
+        if (endDate != null) {
+            whereClause += ' AND CreatedDate <= :endDate';
+        }
+        
+        if (String.isNotBlank(callType)) {
+            whereClause += ' AND CallType = :callType';
+        }
+        
+        if (String.isNotBlank(status)) {
+            whereClause += ' AND VendorCallKey != null'; // Basic filtering for valid calls
+        }
+        
+        // Get total count first
+        String countQuery = 'SELECT COUNT() FROM VoiceCall WHERE ' + whereClause;
+        Integer totalCount = Database.countQuery(countQuery);
+        
+        // Get paginated Voice Calls
+        String mainQuery = 'SELECT Id, Name, CallStartDateTime, CallEndDateTime, CallType, CallDurationInSeconds, FromPhoneNumber, ToPhoneNumber ' +
+                          'FROM VoiceCall ' +
+                          'WHERE ' + whereClause + ' ' +
+                          'ORDER BY CallStartDateTime DESC ' +
+                          'LIMIT :pageSize OFFSET :offset';
+        
+        List<VoiceCall> voiceCalls = Database.query(mainQuery);
+        
+        List<Map<String, Object>> voiceCallData = new List<Map<String, Object>>();
+        for (VoiceCall voiceCall : voiceCalls) {
+            voiceCallData.add(new Map<String, Object>{
+                'Id' => voiceCall.Id,
+                'Name' => voiceCall.Name,
+                'CallStartDateTime' => voiceCall.CallStartDateTime,
+                'CallEndDateTime' => voiceCall.CallEndDateTime,
+                'CallType' => voiceCall.CallType,
+                'CallDurationInSeconds' => voiceCall.CallDurationInSeconds,
+                'FromPhoneNumber' => voiceCall.FromPhoneNumber,
+                'ToPhoneNumber' => voiceCall.ToPhoneNumber
+            });
+        }
+        
+        // Calculate pagination info
+        Integer totalPages = (Integer) Math.ceil((Decimal) totalCount / pageSize);
+        Boolean hasNext = pageNumber < totalPages;
+        Boolean hasPrevious = pageNumber > 1;
+        
+        return new Map<String, Object>{
+            'voiceCalls' => voiceCallData,
+            'pagination' => new Map<String, Object>{
+                'totalCount' => totalCount,
+                'totalPages' => totalPages,
+                'currentPage' => pageNumber,
+                'pageSize' => pageSize,
+                'hasNext' => hasNext,
+                'hasPrevious' => hasPrevious
+            }
+        };
+    }
+
+    @AuraEnabled
     public static Map<String, Object> createAdvancedTestBatch(
-        List<String> sessionIds,
-        String contextualTemplateId,
-        String groundedTemplateId,
+        String testType,
+        List<String> recordIds,
+        String primaryTemplateId,
+        String secondaryTemplateId,
         String retrieverId
     ) {
-        List<Prompt_Test__c> tests = new List<Prompt_Test__c>();
+        // Validate test type
+        if (String.isBlank(testType)) {
+            throw new IllegalArgumentException('Test type is required');
+        }
+        
+        if (recordIds == null || recordIds.isEmpty()) {
+            throw new IllegalArgumentException('At least one record ID is required');
+        }
+        
+        if (String.isBlank(primaryTemplateId)) {
+            throw new IllegalArgumentException('Primary template ID is required');
+        }
+        
+        // Validate templates based on test type
+        if (testType == 'Service Replies' && String.isBlank(secondaryTemplateId)) {
+            throw new IllegalArgumentException('Secondary template ID is required for Service Replies');
+        }
+        
+        return createTestBatchForType(testType, recordIds, primaryTemplateId, secondaryTemplateId, retrieverId);
+    }
+
+    private static Map<String, Object> createTestBatchForType(
+        String testType,
+        List<String> recordIds,
+        String primaryTemplateId,
+        String secondaryTemplateId,
+        String retrieverId
+    ) {
+        if (testType == 'Service Replies') {
+            return createServiceRepliesTests(recordIds, primaryTemplateId, secondaryTemplateId, retrieverId);
+        } else if (testType == 'Case Summary') {
+            return createCaseSummaryTests(recordIds, primaryTemplateId, testType);
+        } else if (testType == 'Work Summary') {
+            return createWorkSummaryTests(recordIds, primaryTemplateId, testType);
+        } else {
+            throw new IllegalArgumentException('Unsupported test type: ' + testType);
+        }
+    }
+
+    private static Map<String, Object> createServiceRepliesTests(
+        List<String> sessionIds,
+        String primaryTemplateId,
+        String secondaryTemplateId,
+        String retrieverId
+    ) {
+        // STEP 1: Perform all callouts first (before any DML operations)
+        Map<Id, List<Map<String, Object>>> sessionUtterancesMap = new Map<Id, List<Map<String, Object>>>();
         Integer totalCustomerUtterances = 0;
         Integer sessionsProcessed = 0;
         Integer sessionsSkipped = 0;
-        
-        // STEP 1: Perform all callouts first (before any DML operations)
-        Map<Id, List<Map<String, Object>>> sessionUtterancesMap = new Map<Id, List<Map<String, Object>>>();
         
         // Get session data for all sessions
         Map<Id, MessagingSession> sessionsById = new Map<Id, MessagingSession>([
@@ -508,16 +704,18 @@ public with sharing class ziip_PromptTestUtil_Controller {
         
         // STEP 2: Perform all DML operations after callouts are complete
         
-        // Create the test batch with template IDs and retriever ID
+        // Create the test batch
         Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
+            Test_Type__c = 'Service Replies',
             Status__c = 'Pending',
-            Context_Template_Id__c = contextualTemplateId,
-            Grounded_Template_Id__c = groundedTemplateId,
+            Primary_Template_Id__c = primaryTemplateId,
+            Secondary_Template_Id__c = secondaryTemplateId,
             Retriever_Id__c = retrieverId
         );
         insert testBatch;
         
         // Create test records for each customer utterance
+        List<Prompt_Test__c> tests = new List<Prompt_Test__c>();
         for (Id sessionId : sessionUtterancesMap.keySet()) {
             List<Map<String, Object>> customerUtterances = sessionUtterancesMap.get(sessionId);
             Integer utteranceSequence = 1;
@@ -549,7 +747,8 @@ public with sharing class ziip_PromptTestUtil_Controller {
             'testRecordsCreated' => tests.size(),
             'sessionsProcessed' => sessionsProcessed,
             'sessionsSkipped' => sessionsSkipped,
-            'totalCustomerUtterances' => totalCustomerUtterances
+            'totalCustomerUtterances' => totalCustomerUtterances,
+            'testType' => 'Service Replies'
         };
     }
     
@@ -692,6 +891,171 @@ public with sharing class ziip_PromptTestUtil_Controller {
         }
         
         return customerUtterances;
+    }
+
+    private static Map<String, Object> createCaseSummaryTests(
+        List<String> caseIds,
+        String templateId,
+        String testType
+    ) {
+        // Create the test batch first
+        Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
+            Test_Type__c = testType,
+            Status__c = 'Pending',
+            Primary_Template_Id__c = templateId
+        );
+        insert testBatch;
+        
+        List<Prompt_Test__c> tests = new List<Prompt_Test__c>();
+        Integer casesProcessed = 0;
+        Integer casesSkipped = 0;
+        
+        // Get case data for all cases
+        Map<Id, Case> casesById = new Map<Id, Case>([
+            SELECT Id, CaseNumber, Subject, Status, CreatedDate, Priority, Origin
+            FROM Case 
+            WHERE Id IN :caseIds
+        ]);
+        
+        // Create test records for each case
+        for (String caseId : caseIds) {
+            try {
+                Case caseRecord = casesById.get(caseId);
+                
+                if (caseRecord == null) {
+                    casesSkipped++;
+                    continue;
+                }
+                
+                tests.add(new Prompt_Test__c(
+                    Prompt_Test_Batch__c = testBatch.Id,
+                    Case__c = caseId,
+                    Status__c = 'Pending'
+                ));
+                
+                casesProcessed++;
+                
+            } catch (Exception e) {
+                System.debug('Error processing case ' + caseId + ': ' + e.getMessage());
+                casesSkipped++;
+            }
+        }
+        
+        // Insert all test records
+        if (!tests.isEmpty()) {
+            insert tests;
+        }
+        
+        return new Map<String, Object>{
+            'batchId' => testBatch.Id,
+            'testRecordsCreated' => tests.size(),
+            'recordsProcessed' => casesProcessed,
+            'recordsSkipped' => casesSkipped,
+            'testType' => testType
+        };
+    }
+
+    private static Map<String, Object> createWorkSummaryTests(
+        List<String> recordIds,
+        String templateId,
+        String testType
+    ) {
+        // Create the test batch first
+        Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
+            Test_Type__c = testType,
+            Status__c = 'Pending',
+            Primary_Template_Id__c = templateId
+        );
+        insert testBatch;
+        
+        List<Prompt_Test__c> tests = new List<Prompt_Test__c>();
+        Integer recordsProcessed = 0;
+        Integer recordsSkipped = 0;
+        
+        // Determine if these are MessagingSession or VoiceCall IDs by checking first record
+        String objectType = 'MessagingSession'; // Default assumption
+        if (!recordIds.isEmpty()) {
+            String firstId = recordIds[0];
+            if (firstId.startsWith('0LG') || firstId.startsWith('0lg')) { // VoiceCall prefix pattern
+                objectType = 'VoiceCall';
+            }
+        }
+        
+        if (objectType == 'MessagingSession') {
+            // Handle messaging sessions
+            Map<Id, MessagingSession> sessionsById = new Map<Id, MessagingSession>([
+                SELECT Id, Name, ConversationId, Conversation.ConversationIdentifier
+                FROM MessagingSession 
+                WHERE Id IN :recordIds
+            ]);
+            
+            for (String sessionId : recordIds) {
+                try {
+                    MessagingSession session = sessionsById.get(sessionId);
+                    
+                    if (session == null) {
+                        recordsSkipped++;
+                        continue;
+                    }
+                    
+                    tests.add(new Prompt_Test__c(
+                        Prompt_Test_Batch__c = testBatch.Id,
+                        Messaging_Session__c = sessionId,
+                        Status__c = 'Pending'
+                    ));
+                    
+                    recordsProcessed++;
+                    
+                } catch (Exception e) {
+                    System.debug('Error processing messaging session ' + sessionId + ': ' + e.getMessage());
+                    recordsSkipped++;
+                }
+            }
+        } else {
+            // Handle voice calls
+            Map<Id, VoiceCall> voiceCallsById = new Map<Id, VoiceCall>([
+                SELECT Id, Name, CallStartDateTime, CallEndDateTime, CallType
+                FROM VoiceCall 
+                WHERE Id IN :recordIds
+            ]);
+            
+            for (String voiceCallId : recordIds) {
+                try {
+                    VoiceCall voiceCall = voiceCallsById.get(voiceCallId);
+                    
+                    if (voiceCall == null) {
+                        recordsSkipped++;
+                        continue;
+                    }
+                    
+                    tests.add(new Prompt_Test__c(
+                        Prompt_Test_Batch__c = testBatch.Id,
+                        Voice_Call__c = voiceCallId,
+                        Status__c = 'Pending'
+                    ));
+                    
+                    recordsProcessed++;
+                    
+                } catch (Exception e) {
+                    System.debug('Error processing voice call ' + voiceCallId + ': ' + e.getMessage());
+                    recordsSkipped++;
+                }
+            }
+        }
+        
+        // Insert all test records
+        if (!tests.isEmpty()) {
+            insert tests;
+        }
+        
+        return new Map<String, Object>{
+            'batchId' => testBatch.Id,
+            'testRecordsCreated' => tests.size(),
+            'recordsProcessed' => recordsProcessed,
+            'recordsSkipped' => recordsSkipped,
+            'testType' => testType,
+            'dataSourceType' => objectType
+        };
     }
     
 }
