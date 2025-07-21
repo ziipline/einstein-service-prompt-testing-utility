@@ -389,15 +389,6 @@ Enable debug logging for detailed troubleshooting:
 - Document all public methods and classes
 - Use consistent naming conventions
 
-## 🏢 About Ziipline
 
-Ziipline specializes in advanced Salesforce solutions and AI integration services. This Service Reply Prompt Testing Utility demonstrates our expertise in:
-
-- Einstein AI implementation and optimization
-- Complex batch processing solutions
-- Lightning Web Component development
-- API integration and data processing
-
-For more information about our services, visit [ziipline.com](https://ziipline.com) or contact our team.
 
 **Built with ❤️ by the Ziipline Team**
