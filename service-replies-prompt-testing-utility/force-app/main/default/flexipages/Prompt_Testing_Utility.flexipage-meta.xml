@@ -15,6 +15,10 @@
                 <identifier>c_ziip_promptTestUtility</identifier>
             </componentInstance>
         </itemInstances>
+        <name>column1</name>
+        <type>Region</type>
+    </flexiPageRegions>
+    <flexiPageRegions>
         <itemInstances>
             <componentInstance>
                 <componentInstanceProperties>
@@ -45,12 +49,12 @@
                 <identifier>flexipage_filterListCard</identifier>
             </componentInstance>
         </itemInstances>
-        <name>main</name>
+        <name>column2</name>
         <type>Region</type>
     </flexiPageRegions>
     <masterLabel>Prompt Testing Utility</masterLabel>
     <template>
-        <name>flexipage:defaultAppHomeTemplate</name>
+        <name>flexipage:appHomeTemplateTwoColumns</name>
     </template>
     <type>AppPage</type>
 </FlexiPage>
