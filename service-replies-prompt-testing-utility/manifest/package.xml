@@ -15,6 +15,7 @@
     
     <!-- Lightning Web Components -->
     <types>
+        <members>promptTestUtility</members>
         <members>ziip_promptTestUtility</members>
         <name>LightningComponentBundle</name>
     </types>
@@ -76,6 +77,18 @@
     <types>
         <members>Ziip_Prompt_Testing_Full_Access</members>
         <name>PermissionSetGroup</name>
+    </types>
+    
+    <!-- List Views -->
+    <types>
+        <members>Prompt_Test_Batch__c.All_Batches</members>
+        <name>ListView</name>
+    </types>
+    
+    <!-- Quick Actions -->
+    <types>
+        <members>Prompt_Test_Batch__c.Run_Tests</members>
+        <name>QuickAction</name>
     </types>
     
     <version>62.0</version>
