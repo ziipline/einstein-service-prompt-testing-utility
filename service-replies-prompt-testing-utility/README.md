@@ -184,11 +184,8 @@ Configure the appropriate Einstein Prompt Templates based on your intended test 
 
 ### Retriever Configuration
 
-For grounded Service Reply templates, update the `DEFAULT_RETRIEVER_ID` in `ziip_PromptTestBatch.cls`:
-
-```apex
-private static final String DEFAULT_RETRIEVER_ID = 'your-retriever-id-here';
-```
+For grounded Service Reply templates, update the RetriverId attribute when adding the 
+ziip__PromptTestingUtility to an App page in App Builder
 
 ## 📖 Usage Guide
 
