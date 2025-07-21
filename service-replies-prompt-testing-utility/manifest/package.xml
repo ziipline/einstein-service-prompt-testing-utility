@@ -46,6 +46,7 @@
         <members>Prompt_Test_Batch__c.Context_Template_Id__c</members>
         <members>Prompt_Test_Batch__c.End_Datetime__c</members>
         <members>Prompt_Test_Batch__c.Grounded_Template_Id__c</members>
+        <members>Prompt_Test_Batch__c.Retriever_Id__c</members>
         <members>Prompt_Test_Batch__c.Start_Datetime__c</members>
         <members>Prompt_Test_Batch__c.Status__c</members>
         <name>CustomField</name>

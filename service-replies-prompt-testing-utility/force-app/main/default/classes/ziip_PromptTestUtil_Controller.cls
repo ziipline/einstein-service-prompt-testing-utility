@@ -447,9 +447,10 @@ public with sharing class ziip_PromptTestUtil_Controller {
     
     @AuraEnabled
     public static Map<String, Object> createAdvancedTestBatch(
-        List<Id> sessionIds,
-        String contextualTemplateId, 
-        String groundedTemplateId
+        List<String> sessionIds,
+        String contextualTemplateId,
+        String groundedTemplateId,
+        String retrieverId
     ) {
         List<Prompt_Test__c> tests = new List<Prompt_Test__c>();
         Integer totalCustomerUtterances = 0;
@@ -507,11 +508,12 @@ public with sharing class ziip_PromptTestUtil_Controller {
         
         // STEP 2: Perform all DML operations after callouts are complete
         
-        // Create the test batch with template IDs
+        // Create the test batch with template IDs and retriever ID
         Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
             Status__c = 'Pending',
             Context_Template_Id__c = contextualTemplateId,
-            Grounded_Template_Id__c = groundedTemplateId
+            Grounded_Template_Id__c = groundedTemplateId,
+            Retriever_Id__c = retrieverId
         );
         insert testBatch;
         

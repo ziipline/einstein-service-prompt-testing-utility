@@ -31,6 +31,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
     
     @api messagingSessionsPageSize = 10;
     @api promptTemplatesPageSize = 20;
+    @api defaultRetrieverId = '';
     
     // Step Management
     showTemplateSelection = true;
@@ -41,6 +42,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
     templateColumns = templateColumns;
     selectedContextualTemplate = null;
     selectedGroundedTemplate = null;
+    selectedRetrieverId = '';
     isLoadingTemplates = false;
     
     // Template Filter Properties
@@ -93,6 +95,8 @@ export default class Ziip_promptTestUtility extends LightningElement {
     }
 
     connectedCallback() {
+        // Set default retriever ID from design attribute
+        this.selectedRetrieverId = this.defaultRetrieverId || '';
         // Load templates on component initialization
         this.loadTemplates();
     }
@@ -201,6 +205,10 @@ export default class Ziip_promptTestUtility extends LightningElement {
             this.selectedGroundedTemplate = { ...row };
             this.showToast('Success', 'Grounded Service Reply template selected: ' + row.Name, 'success');
         }
+    }
+
+    handleRetrieverIdChange(event) {
+        this.selectedRetrieverId = event.target.value;
     }
 
     handleContinueToSessions() {
@@ -316,7 +324,8 @@ export default class Ziip_promptTestUtility extends LightningElement {
         createAdvancedTestBatch({ 
             sessionIds: this.selectedSessionIds,
             contextualTemplateId: this.selectedContextualTemplate.Id,
-            groundedTemplateId: this.selectedGroundedTemplate.Id
+            groundedTemplateId: this.selectedGroundedTemplate.Id,
+            retrieverId: this.selectedRetrieverId
         })
         .then(result => {
             console.log('Advanced test batch creation result:', result);
@@ -388,7 +397,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
 
     // Session computed properties
     get continueDisabled() {
-        return !this.selectedContextualTemplate || !this.selectedGroundedTemplate;
+        return !this.selectedContextualTemplate || !this.selectedGroundedTemplate || !this.selectedRetrieverId;
     }
 
     get currentPageInfo() {

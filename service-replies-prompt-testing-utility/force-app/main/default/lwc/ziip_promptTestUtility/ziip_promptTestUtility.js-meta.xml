@@ -11,6 +11,7 @@
         <targetConfig targets="lightning__AppPage,lightning__RecordPage,lightning__HomePage">
             <property name="messagingSessionsPageSize" type="Integer" default="10" label="Messaging Sessions Page Size" description="Number of messaging sessions to display per page in session selection"/>
             <property name="promptTemplatesPageSize" type="Integer" default="20" label="Prompt Templates Page Size" description="Number of Einstein AI prompt templates to display per page in template selection"/>
+            <property name="defaultRetrieverId" type="String" label="Default Retriever ID" description="Default Einstein retriever ID for grounded template processing (required for component to function)"/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

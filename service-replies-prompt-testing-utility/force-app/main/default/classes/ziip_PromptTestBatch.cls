@@ -115,7 +115,8 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                    Transcript__c, Contextual_Service_Replies_Result__c, Grounded_Service_Replies_Result__c,
                    Customer_Utterance__c, Utterance_Sequence__c,
                    Prompt_Test_Batch__r.Context_Template_Id__c, 
-                   Prompt_Test_Batch__r.Grounded_Template_Id__c
+                   Prompt_Test_Batch__r.Grounded_Template_Id__c,
+                   Prompt_Test_Batch__r.Retriever_Id__c
             FROM Prompt_Test__c 
             WHERE Prompt_Test_Batch__c IN :batchIds
             AND Status__c = :STATUS_PENDING
@@ -243,12 +244,17 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private void processGroundedTemplate(Prompt_Test__c test, String transcript, String searchQuery) {
         if (String.isNotBlank(test.Prompt_Test_Batch__r.Grounded_Template_Id__c)) {
             if (isValidSearchQuery(searchQuery)) {
+                // Use retriever ID from batch record or fallback to default
+                String retrieverId = String.isNotBlank(test.Prompt_Test_Batch__r.Retriever_Id__c) 
+                    ? test.Prompt_Test_Batch__r.Retriever_Id__c 
+                    : DEFAULT_RETRIEVER_ID;
+                    
                 String groundedResult = executeEinsteinPrompt(
                     test.Prompt_Test_Batch__r.Grounded_Template_Id__c,
                     transcript,
                     searchQuery,
                     test.Messaging_Session__c,
-                    DEFAULT_RETRIEVER_ID
+                    retrieverId
                 );
                 
                 test.Grounded_Service_Replies_Result__c = formatGroundedResult(groundedResult);

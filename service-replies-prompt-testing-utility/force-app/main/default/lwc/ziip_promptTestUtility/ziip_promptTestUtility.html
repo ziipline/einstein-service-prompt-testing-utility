@@ -36,6 +36,36 @@
                         </div>
                     </div>
 
+                    <!-- Retriever Configuration -->
+                    <div class="slds-var-m-bottom_medium">
+                        <div class="slds-card">
+                            <div class="slds-card__header">
+                                <h3 class="slds-text-heading_small">Retriever Configuration</h3>
+                            </div>
+                            <div class="slds-card__body slds-card__body_inner">
+                                <lightning-input
+                                    type="text"
+                                    label="Retriever ID"
+                                    value={selectedRetrieverId}
+                                    placeholder="Enter Einstein retriever ID"
+                                    help-text="Enter the Einstein retriever ID for grounded template processing"
+                                    required
+                                    onchange={handleRetrieverIdChange}>
+                                </lightning-input>
+                                <template if:true={defaultRetrieverId}>
+                                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">
+                                        Default retriever: {defaultRetrieverId}
+                                    </p>
+                                </template>
+                                <template if:false={defaultRetrieverId}>
+                                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">
+                                        No default retriever configured. Ask your admin to set the Default Retriever ID in the component design properties.
+                                    </p>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Template Filters -->
                     <div class="slds-var-m-bottom_medium">
                         <div class="slds-card">
