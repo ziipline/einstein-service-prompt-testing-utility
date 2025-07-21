@@ -25,7 +25,6 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     // ===========================================
     private static final String INPUT_CONVERSATION_TRANSCRIPT = 'Input:conversation_transcript';
     private static final String INPUT_CASE_CONTEXT = 'Input:case_context';
-    private static final String INPUT_WORK_CONTEXT = 'Input:work_context';
     private static final String INPUT_RETRIEVER_ID_OR_NAME = 'Input:RetrieverIdOrName';
     private static final String INPUT_SEARCH_QUERY = 'Input:search_query';
     private static final String INPUT_MESSAGING_SESSION = 'Input:MessagingSession';
@@ -59,6 +58,15 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private static final String DEFAULT_RETRIEVER_ID = '';
     private static final String INVALID_SEARCH_QUERY_VALUE = 'none';
     private static final String MESSAGING_SESSION_ID_KEY = 'id';
+    private static final String RECORD_ID_KEY = 'id';
+    
+    // ===========================================
+    // TEMPLATE TYPE CONSTANTS
+    // ===========================================
+    private static final String TEMPLATE_TYPE_CONTEXTUAL = 'contextual';
+    private static final String TEMPLATE_TYPE_GROUNDED = 'grounded';
+    private static final String TEMPLATE_TYPE_CASE_SUMMARY = 'case_summary';
+    private static final String TEMPLATE_TYPE_WORK_SUMMARY = 'work_summary';
     
     // ===========================================
     // FORMATTING CONSTANTS
@@ -235,10 +243,10 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 transcript,
                 null,
                 null,
-                'contextual'
+                TEMPLATE_TYPE_CONTEXTUAL
             );
             
-            test.Primary_Result__c = formatServiceRepliesResult(contextResult, 'contextual');
+            test.Primary_Result__c = formatServiceRepliesResult(contextResult, TEMPLATE_TYPE_CONTEXTUAL);
             
             // Extract search query for grounded template
             String searchQuery = extractSearchQueryFromResult(contextResult);
@@ -252,10 +260,10 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                     transcript,
                     searchQuery,
                     getRetrieverId(test),
-                    'grounded'
+                    TEMPLATE_TYPE_GROUNDED
                 );
                 
-                test.Secondary_Result__c = formatServiceRepliesResult(groundedResult, 'grounded');
+                test.Secondary_Result__c = formatServiceRepliesResult(groundedResult, TEMPLATE_TYPE_GROUNDED);
             } else {
                 String skipReason = buildGroundedSkipMessage(searchQuery);
                 test.Secondary_Result__c = skipReason;
@@ -280,7 +288,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 caseContext,
                 null,
                 null,
-                'case_summary'
+                TEMPLATE_TYPE_CASE_SUMMARY
             );
             
             test.Primary_Result__c = formatGenericResult(result, CASE_SUMMARY_HEADER);
@@ -304,7 +312,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 workContext,
                 null,
                 null,
-                'work_summary'
+                TEMPLATE_TYPE_WORK_SUMMARY
             );
             
             test.Primary_Result__c = formatGenericResult(result, WORK_SUMMARY_HEADER);
@@ -520,24 +528,25 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 // Add case reference
                 if (test.Case__c != null) {
                     Map<String, String> caseInput = new Map<String, String>();
-                    caseInput.put('id', String.valueOf(test.Case__c));
+                    caseInput.put(RECORD_ID_KEY, String.valueOf(test.Case__c));
                     ConnectApi.WrappedValue caseValue = new ConnectApi.WrappedValue();
                     caseValue.value = caseInput;
                     inputParams.put(INPUT_CASE, caseValue);
                 }
             }
             when 'work_summary' {
-                inputParams.put(INPUT_WORK_CONTEXT, contextValue);
-                // Add appropriate record reference
+                // Work Summary templates work directly with object references
                 if (test.Messaging_Session__c != null) {
+                    // For messaging sessions, only provide the session reference
                     Map<String, String> sessionInput = new Map<String, String>();
                     sessionInput.put(MESSAGING_SESSION_ID_KEY, String.valueOf(test.Messaging_Session__c));
                     ConnectApi.WrappedValue sessionValue = new ConnectApi.WrappedValue();
                     sessionValue.value = sessionInput;
                     inputParams.put(INPUT_MESSAGING_SESSION, sessionValue);
                 } else if (test.Voice_Call__c != null) {
+                    // For voice calls, only provide the voice call reference
                     Map<String, String> voiceCallInput = new Map<String, String>();
-                    voiceCallInput.put('id', String.valueOf(test.Voice_Call__c));
+                    voiceCallInput.put(RECORD_ID_KEY, String.valueOf(test.Voice_Call__c));
                     ConnectApi.WrappedValue voiceCallValue = new ConnectApi.WrappedValue();
                     voiceCallValue.value = voiceCallInput;
                     inputParams.put(INPUT_VOICE_CALL, voiceCallValue);
