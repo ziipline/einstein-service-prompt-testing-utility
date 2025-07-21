@@ -1,6 +1,6 @@
-# Service Reply Prompt Testing Utility
+# Einstein Prompt Testing Utility
 
-A comprehensive Salesforce application for testing Einstein Service Reply prompt templates against real conversation data. This utility enables systematic evaluation of AI-powered customer service responses by processing historical messaging sessions through both contextual and grounded prompt templates.
+A comprehensive Salesforce application for testing multiple types of Einstein prompt templates against real organizational data. This utility enables systematic evaluation of AI-powered responses by processing historical data through various template types including Service Replies, Case Summaries, and Work Summaries.
 
 ![Salesforce](https://img.shields.io/badge/Salesforce-00D4FF?style=flat-square&logo=salesforce&logoColor=white)
 ![Einstein AI](https://img.shields.io/badge/Einstein-AI-orange?style=flat-square)
@@ -18,27 +18,36 @@ A comprehensive Salesforce application for testing Einstein Service Reply prompt
     </a>
   </div>
 
-The Service Reply Prompt Testing Utility streamlines the process of evaluating Einstein Service Reply templates by:
+The Einstein Prompt Testing Utility streamlines the process of evaluating multiple types of Einstein templates by:
 
-- **Automated Testing**: Batch process hundreds of conversations through your prompt templates
+- **Multi-Template Support**: Test Service Replies, Case Summaries, and Work Summaries
+- **Automated Testing**: Batch process hundreds of records through your prompt templates
 - **Intelligent Processing**: Automatically skips grounded templates when contextual analysis returns 'none'
-- **Comprehensive Analysis**: Tests each customer utterance individually with cumulative conversation context
-- **Interactive Interface**: Easy-to-use Lightning Web Component for template and session selection
-- **Detailed Results**: Structured output showing both contextual analysis and grounded responses
+- **Flexible Data Sources**: Support for messaging sessions, cases, and voice calls
+- **Interactive Interface**: Easy-to-use Lightning Web Component for template and data selection
+- **Comprehensive Results**: Structured output tailored to each template type
 
 ## 🚀 Features
 
+### Test Types Supported
+- ✅ **Service Replies**: Test contextual and grounded response templates using messaging sessions
+- ✅ **Case Summaries**: Generate AI-powered case summaries using Case records
+- ✅ **Work Summaries**: Create work summaries from messaging sessions or voice calls
+
 ### Core Capabilities
-- ✅ **Template Selection**: Browse and select Einstein Prompt Templates with pagination
-- ✅ **Session Filtering**: Advanced filtering of messaging sessions by date, name, and status
-- ✅ **Batch Processing**: Automated processing of multiple conversations simultaneously
-- ✅ **Contextual Analysis**: Extract search queries and analyze conversation context
-- ✅ **Grounded Responses**: Generate knowledge-grounded responses when relevant
+- ✅ **Multi-Source Data**: Support for Messaging Sessions, Cases, and Voice Calls
+- ✅ **Template Selection**: Browse and select Einstein Prompt Templates with pagination and filtering
+- ✅ **Advanced Filtering**: Filter records by date range, name, status, and other criteria
+- ✅ **Batch Processing**: Automated processing of hundreds of records simultaneously
+- ✅ **Contextual Analysis**: Extract search queries and analyze conversation context (Service Replies)
+- ✅ **Grounded Responses**: Generate knowledge-grounded responses when relevant (Service Replies)
 - ✅ **Customer Utterance Parsing**: Automatically identify and process individual customer messages
-- ✅ **Progress Tracking**: Monitor batch processing status and results
+- ✅ **Progress Tracking**: Monitor batch processing status and detailed results
 
 ### Technical Features
-- 🔧 **API Integration**: Seamless Connect API integration for conversation data
+- 🔧 **Multi-Template Architecture**: Flexible processing engine supporting different template types
+- 🔧 **API Integration**: Connect API for conversation data, Einstein API for template execution
+- 🔧 **Object References**: Direct Salesforce object integration for optimal data access
 - 🔧 **Error Handling**: Comprehensive error handling and debug logging
 - 🔧 **Scalable Architecture**: Batch processing for handling large datasets
 - 🔧 **Performance Optimized**: Efficient pagination and data processing
@@ -46,10 +55,14 @@ The Service Reply Prompt Testing Utility streamlines the process of evaluating E
 ## 📋 Prerequisites
 
 ### Salesforce Requirements
-- Salesforce org with Einstein Service features enabled
-- Einstein Service Reply licenses
-- Service Cloud Conversation Intelligence enabled
-- Messaging for In-App and Web enabled
+- Salesforce org with Einstein AI features enabled
+- Einstein licenses (appropriate to your use case):
+  - Einstein Service Reply (for Service Replies test type)
+  - Einstein Case Summarization (for Case Summary test type)
+  - Einstein Work Summarization (for Work Summary test type)
+- Service Cloud Conversation Intelligence enabled (for messaging session data)
+- Messaging for In-App and Web enabled (for Service Replies)
+- Voice Call recording and transcription (for Work Summary voice call testing)
 
 ### Required Permissions
 - System Administrator or the included Permission Set Group:
@@ -59,7 +72,8 @@ The Service Reply Prompt Testing Utility streamlines the process of evaluating E
     - **Ziip Prompt Testing Admin** - Administrative capabilities
   - Additional manual setup required:
     - **Salesforce_Connect_API** Named Credential access
-    - Einstein Service Reply licenses
+    - Appropriate Einstein licenses based on test types used
+    - Read access to Case, MessagingSession, and VoiceCall objects
 
 ## 🛠️ Installation
 
@@ -143,10 +157,11 @@ Ensure the following remote site is allowed:
 
 ## ⚙️ Configuration
 
-### Einstein Prompt Templates
+### Einstein Prompt Templates by Test Type
 
-Ensure you have created the required Einstein Prompt Templates:
+Configure the appropriate Einstein Prompt Templates based on your intended test types:
 
+#### **Service Replies Templates**
 1. **Contextual Service Reply Template**
    - Should analyze conversation and return search queries
    - Expected output format: `{"search_query": "your query", "recent_speaker": "Customer"}`
@@ -155,9 +170,21 @@ Ensure you have created the required Einstein Prompt Templates:
    - Should use search queries to generate grounded responses
    - Requires retriever configuration for knowledge base access
 
+#### **Case Summary Templates**
+1. **Case Summarization Template**
+   - Should generate summaries from Case objects
+   - Uses `Input:caseToSummarize` parameter with Case object reference
+   - Template works directly with Salesforce Case data
+
+#### **Work Summary Templates**
+1. **Work Summarization Template**
+   - Should generate summaries from MessagingSession or VoiceCall objects
+   - Uses object references for optimal data access
+   - Supports both conversation transcripts and voice call data
+
 ### Retriever Configuration
 
-Update the `DEFAULT_RETRIEVER_ID` in `ziip_PromptTestBatch.cls` with your retriever ID:
+For grounded Service Reply templates, update the `DEFAULT_RETRIEVER_ID` in `ziip_PromptTestBatch.cls`:
 
 ```apex
 private static final String DEFAULT_RETRIEVER_ID = 'your-retriever-id-here';
@@ -167,38 +194,70 @@ private static final String DEFAULT_RETRIEVER_ID = 'your-retriever-id-here';
 
 ### 1. Accessing the Application
 
-Navigate to the **Prompt Testind Utility** tab in your Salesforce org to access the testing utility.
+Navigate to the **Prompt Testing Utility** tab in your Salesforce org to access the testing utility.
 
-### 2. Template Selection
+### 2. Test Type Selection
+
+1. **Choose Test Type**: Select from Service Replies, Case Summary, or Work Summary
+2. **Configure Templates**: Based on your selection:
+   - **Service Replies**: Requires both Primary (Contextual) and Secondary (Grounded) templates
+   - **Case Summary**: Requires only Primary template
+   - **Work Summary**: Requires only Primary template
+
+### 3. Template Selection
 
 1. **Browse Templates**: View paginated list of available Einstein Prompt Templates
-2. **Select Context Template**: Choose your Contextual Service Reply template
-3. **Select Grounded Template**: Choose your Grounded Service Reply template
-4. **Continue**: Proceed to session selection
+2. **Filter Templates**: Use search and type filters to find relevant templates
+3. **Select Templates**: Choose appropriate templates for your test type
+4. **Continue**: Proceed to data selection
 
-### 3. Session Selection
+### 4. Data Selection
 
-1. **Apply Filters**: 
-   - Date range (start/end dates)
-   - Session name search
-   - Status filter
+Depending on your test type, select appropriate data sources:
+
+#### **Service Replies - Messaging Sessions**
+1. **Apply Filters**: Date range, session name, status
 2. **Browse Sessions**: Navigate through paginated messaging sessions
-3. **Select Sessions**: Choose up to 200 messaging sessions for testing
-4. **Create Batch**: Generate test batch with selected conversations
+3. **Select Sessions**: Choose up to 200 messaging sessions
+4. **Customer Utterances**: Each session will be processed for individual customer messages
 
-### 4. Batch Processing
+#### **Case Summary - Cases**
+1. **Apply Filters**: Date range, subject, status, priority
+2. **Browse Cases**: Navigate through paginated case records
+3. **Select Cases**: Choose cases to summarize
+4. **Case Processing**: Each selected case will be processed individually
 
-1. **Automatic Processing**: Batch processes all customer utterances
+#### **Work Summary - Sessions or Voice Calls**
+1. **Apply Filters**: Date range, name, status, type
+2. **Browse Records**: Navigate through messaging sessions or voice calls
+3. **Select Records**: Choose records for work summary generation
+4. **Work Processing**: Each record will be processed for summary generation
+
+### 5. Batch Processing
+
+1. **Automatic Processing**: Batch processes selected records through templates
 2. **Monitor Progress**: Track processing status in the Prompt Test Batch record
 3. **Review Results**: Examine detailed results for each test
 
-### 5. Understanding Results
+### 6. Understanding Results
 
-Each test record contains:
+Results vary by test type:
+
+#### **Service Replies Results**
 - **Customer Utterance**: The specific customer message being tested
-- **Contextual Result**: Analysis output including search queries and context
-- **Grounded Result**: Knowledge-grounded response (if applicable)
+- **Primary Result**: Contextual analysis including search queries and context
+- **Secondary Result**: Knowledge-grounded response (if applicable)
 - **Processing Status**: Success, failure, or skipped status
+
+#### **Case Summary Results**
+- **Case Reference**: The case being summarized
+- **Primary Result**: AI-generated case summary
+- **Processing Status**: Success or failure status
+
+#### **Work Summary Results**
+- **Work Reference**: The messaging session or voice call being summarized
+- **Primary Result**: AI-generated work summary
+- **Processing Status**: Success or failure status
 
 ## 🏗️ Technical Architecture
 
