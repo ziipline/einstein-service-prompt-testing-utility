@@ -24,7 +24,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     // EINSTEIN AI INPUT PARAMETER CONSTANTS
     // ===========================================
     private static final String INPUT_CONVERSATION_TRANSCRIPT = 'Input:conversation_transcript';
-    private static final String INPUT_CASE_CONTEXT = 'Input:case_context';
+    private static final String INPUT_CASE_TO_SUMMARIZE = 'Input:caseToSummarize';
     private static final String INPUT_RETRIEVER_ID_OR_NAME = 'Input:RetrieverIdOrName';
     private static final String INPUT_SEARCH_QUERY = 'Input:search_query';
     private static final String INPUT_MESSAGING_SESSION = 'Input:MessagingSession';
@@ -524,14 +524,13 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 }
             }
             when 'case_summary' {
-                inputParams.put(INPUT_CASE_CONTEXT, contextValue);
-                // Add case reference
+                // Case Summary templates expect caseToSummarize parameter with case reference
                 if (test.Case__c != null) {
                     Map<String, String> caseInput = new Map<String, String>();
                     caseInput.put(RECORD_ID_KEY, String.valueOf(test.Case__c));
                     ConnectApi.WrappedValue caseValue = new ConnectApi.WrappedValue();
                     caseValue.value = caseInput;
-                    inputParams.put(INPUT_CASE, caseValue);
+                    inputParams.put(INPUT_CASE_TO_SUMMARIZE, caseValue);
                 }
             }
             when 'work_summary' {

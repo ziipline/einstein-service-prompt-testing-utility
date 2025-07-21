@@ -454,71 +454,92 @@ public with sharing class ziip_PromptTestUtil_Controller {
         String subject,
         String status
     ) {
-        // Calculate offset for pagination
-        Integer offset = (pageNumber - 1) * pageSize;
-        
-        // Build dynamic WHERE clause
-        String whereClause = '1=1';
-        
-        if (startDate != null) {
-            whereClause += ' AND CreatedDate >= :startDate';
-        }
-        
-        if (endDate != null) {
-            whereClause += ' AND CreatedDate <= :endDate';
-        }
-        
-        if (String.isNotBlank(subject)) {
-            String searchPattern = '%' + subject + '%';
-            whereClause += ' AND Subject LIKE :searchPattern';
-        }
-        
-        if (String.isNotBlank(status)) {
-            whereClause += ' AND Status = :status';
-        }
-        
-        // Get total count first
-        String countQuery = 'SELECT COUNT() FROM Case WHERE ' + whereClause;
-        Integer totalCount = Database.countQuery(countQuery);
-        
-        // Get paginated Cases
-        String mainQuery = 'SELECT Id, CaseNumber, Subject, Status, CreatedDate, Priority, Origin ' +
-                          'FROM Case ' +
-                          'WHERE ' + whereClause + ' ' +
-                          'ORDER BY CreatedDate DESC ' +
-                          'LIMIT :pageSize OFFSET :offset';
-        
-        List<Case> cases = Database.query(mainQuery);
-        
-        List<Map<String, Object>> caseData = new List<Map<String, Object>>();
-        for (Case caseRecord : cases) {
-            caseData.add(new Map<String, Object>{
-                'Id' => caseRecord.Id,
-                'CaseNumber' => caseRecord.CaseNumber,
-                'Subject' => caseRecord.Subject,
-                'Status' => caseRecord.Status,
-                'CreatedDate' => caseRecord.CreatedDate,
-                'Priority' => caseRecord.Priority,
-                'Origin' => caseRecord.Origin
-            });
-        }
-        
-        // Calculate pagination info
-        Integer totalPages = (Integer) Math.ceil((Decimal) totalCount / pageSize);
-        Boolean hasNext = pageNumber < totalPages;
-        Boolean hasPrevious = pageNumber > 1;
-        
-        return new Map<String, Object>{
-            'cases' => caseData,
-            'pagination' => new Map<String, Object>{
-                'totalCount' => totalCount,
-                'totalPages' => totalPages,
-                'currentPage' => pageNumber,
-                'pageSize' => pageSize,
-                'hasNext' => hasNext,
-                'hasPrevious' => hasPrevious
+        try {
+            // Calculate offset for pagination
+            Integer offset = (pageNumber - 1) * pageSize;
+            
+            // Build dynamic WHERE clause conditions
+            List<String> conditions = new List<String>();
+            
+            if (startDate != null) {
+                conditions.add('CreatedDate >= :startDate');
             }
-        };
+            
+            if (endDate != null) {
+                conditions.add('CreatedDate <= :endDate');
+            }
+            
+            if (String.isNotBlank(subject)) {
+                String searchPattern = '%' + subject + '%';
+                conditions.add('Subject LIKE :searchPattern');
+            }
+            
+            if (String.isNotBlank(status)) {
+                conditions.add('Status = :status');
+            }
+            
+            // Build WHERE clause
+            String whereClause = conditions.isEmpty() ? '' : 'WHERE ' + String.join(conditions, ' AND ');
+            
+            // Get total count first
+            String countQuery = 'SELECT COUNT() FROM Case ' + whereClause;
+            Integer totalCount = Database.countQuery(countQuery);
+            
+            // Get paginated Cases
+            String mainQuery = 'SELECT Id, CaseNumber, Subject, Status, CreatedDate, Priority, Origin ' +
+                              'FROM Case ' +
+                              whereClause + ' ' +
+                              'ORDER BY CreatedDate DESC ' +
+                              'LIMIT :pageSize OFFSET :offset';
+            
+            List<Case> cases = Database.query(mainQuery);
+            
+            List<Map<String, Object>> caseData = new List<Map<String, Object>>();
+            for (Case caseRecord : cases) {
+                caseData.add(new Map<String, Object>{
+                    'Id' => caseRecord.Id,
+                    'CaseNumber' => caseRecord.CaseNumber,
+                    'Subject' => caseRecord.Subject,
+                    'Status' => caseRecord.Status,
+                    'CreatedDate' => caseRecord.CreatedDate,
+                    'Priority' => caseRecord.Priority,
+                    'Origin' => caseRecord.Origin
+                });
+            }
+            
+            // Calculate pagination info
+            Integer totalPages = (Integer) Math.ceil((Decimal) totalCount / pageSize);
+            Boolean hasNext = pageNumber < totalPages;
+            Boolean hasPrevious = pageNumber > 1;
+            
+            return new Map<String, Object>{
+                'cases' => caseData,
+                'pagination' => new Map<String, Object>{
+                    'totalCount' => totalCount,
+                    'totalPages' => totalPages,
+                    'currentPage' => pageNumber,
+                    'pageSize' => pageSize,
+                    'hasNext' => hasNext,
+                    'hasPrevious' => hasPrevious
+                }
+            };
+            
+        } catch (Exception e) {
+            System.debug('Exception in getCases: ' + e.getMessage());
+            System.debug('Stack trace: ' + e.getStackTraceString());
+            return new Map<String, Object>{
+                'cases' => new List<Map<String, Object>>(),
+                'pagination' => new Map<String, Object>{
+                    'totalCount' => 0,
+                    'totalPages' => 1,
+                    'currentPage' => 1,
+                    'pageSize' => pageSize,
+                    'hasNext' => false,
+                    'hasPrevious' => false
+                },
+                'error' => e.getMessage()
+            };
+        }
     }
 
     @AuraEnabled
