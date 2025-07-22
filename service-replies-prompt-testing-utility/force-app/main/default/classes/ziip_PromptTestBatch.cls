@@ -5,6 +5,19 @@
  */
 public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Database.AllowsCallouts {
     
+    /**
+     * @description Wrapper class to hold prompt execution results
+     */
+    public class PromptExecutionResult {
+        public String resultText;
+        public String resolvedPrompt;
+        
+        public PromptExecutionResult(String resultText, String resolvedPrompt) {
+            this.resultText = resultText;
+            this.resolvedPrompt = resolvedPrompt;
+        }
+    }
+    
     // ===========================================
     // STATUS CONSTANTS
     // ===========================================
@@ -94,6 +107,19 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private static final String ERROR_UNSUPPORTED_TEST_TYPE = 'Unsupported test type: ';
     
     // ===========================================
+    // DEBUG CONSTANTS
+    // ===========================================
+    private static final String DEBUG_SEPARATOR = '='.repeat(50);
+    private static final String DEBUG_SECTION_SEPARATOR = '-'.repeat(30);
+    private static final String DEBUG_CONNECTAPI_START = 'CONNECTAPI DEBUG START';
+    private static final String DEBUG_CONNECTAPI_END = 'CONNECTAPI DEBUG END';
+    private static final String DEBUG_INPUT_PARAMS = 'INPUT PARAMETERS DEBUG';
+    private static final String DEBUG_NULL_VALUE = '[NULL]';
+    private static final String DEBUG_EMPTY_LIST = '[EMPTY LIST]';
+    private static final String DEBUG_LIST_SIZE_PREFIX = '[LIST SIZE: ';
+    private static final String DEBUG_LIST_SIZE_SUFFIX = ']';
+    
+    // ===========================================
     // DISPLAY FORMATTING CONSTANTS
     // ===========================================
     private static final String CONTEXT_HEADER = 'CONTEXTUAL SERVICE REPLIES' + DOUBLE_NEWLINE;
@@ -135,6 +161,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         return Database.getQueryLocator([
             SELECT Id, Prompt_Test_Batch__c, Messaging_Session__c, Case__c, Voice_Call__c, Status__c, 
                    Transcript__c, Primary_Result__c, Secondary_Result__c,
+                   Primary_Resolved_Prompt__c, Secondary_Resolved_Prompt__c,
                    Customer_Utterance__c, Utterance_Sequence__c,
                    Prompt_Test_Batch__r.Test_Type__c,
                    Prompt_Test_Batch__r.Primary_Template_Id__c,
@@ -237,7 +264,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         // Execute primary (contextual) template
         String primaryTemplateId = getPrimaryTemplateId(test);
         if (String.isNotBlank(primaryTemplateId)) {
-            String contextResult = executePromptTemplate(
+            PromptExecutionResult contextResult = executePromptTemplate(
                 primaryTemplateId,
                 test,
                 transcript,
@@ -246,15 +273,16 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 TEMPLATE_TYPE_CONTEXTUAL
             );
             
-            test.Primary_Result__c = formatServiceRepliesResult(contextResult, TEMPLATE_TYPE_CONTEXTUAL);
+            test.Primary_Result__c = formatServiceRepliesResult(contextResult.resultText, TEMPLATE_TYPE_CONTEXTUAL);
+            test.Primary_Resolved_Prompt__c = contextResult.resolvedPrompt;
             
             // Extract search query for grounded template
-            String searchQuery = extractSearchQueryFromResult(contextResult);
+            String searchQuery = extractSearchQueryFromResult(contextResult.resultText);
             
             // Execute secondary (grounded) template if configured and search query is valid
             String secondaryTemplateId = getSecondaryTemplateId(test);
             if (String.isNotBlank(secondaryTemplateId) && isValidSearchQuery(searchQuery)) {
-                String groundedResult = executePromptTemplate(
+                PromptExecutionResult groundedResult = executePromptTemplate(
                     secondaryTemplateId,
                     test,
                     transcript,
@@ -263,7 +291,8 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                     TEMPLATE_TYPE_GROUNDED
                 );
                 
-                test.Secondary_Result__c = formatServiceRepliesResult(groundedResult, TEMPLATE_TYPE_GROUNDED);
+                test.Secondary_Result__c = formatServiceRepliesResult(groundedResult.resultText, TEMPLATE_TYPE_GROUNDED);
+                test.Secondary_Resolved_Prompt__c = groundedResult.resolvedPrompt;
             } else {
                 String skipReason = buildGroundedSkipMessage(searchQuery);
                 test.Secondary_Result__c = skipReason;
@@ -282,7 +311,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         String primaryTemplateId = getPrimaryTemplateId(test);
         
         if (String.isNotBlank(primaryTemplateId)) {
-            String result = executePromptTemplate(
+            PromptExecutionResult result = executePromptTemplate(
                 primaryTemplateId,
                 test,
                 caseContext,
@@ -291,7 +320,8 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 TEMPLATE_TYPE_CASE_SUMMARY
             );
             
-            test.Primary_Result__c = formatGenericResult(result, CASE_SUMMARY_HEADER);
+            test.Primary_Result__c = formatGenericResult(result.resultText, CASE_SUMMARY_HEADER);
+            test.Primary_Resolved_Prompt__c = result.resolvedPrompt;
         }
     }
     
@@ -306,7 +336,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         String primaryTemplateId = getPrimaryTemplateId(test);
         
         if (String.isNotBlank(primaryTemplateId)) {
-            String result = executePromptTemplate(
+            PromptExecutionResult result = executePromptTemplate(
                 primaryTemplateId,
                 test,
                 workContext,
@@ -315,7 +345,8 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 TEMPLATE_TYPE_WORK_SUMMARY
             );
             
-            test.Primary_Result__c = formatGenericResult(result, WORK_SUMMARY_HEADER);
+            test.Primary_Result__c = formatGenericResult(result.resultText, WORK_SUMMARY_HEADER);
+            test.Primary_Resolved_Prompt__c = result.resolvedPrompt;
         }
     }
     
@@ -456,9 +487,9 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
      * @param searchQuery Search query for grounded templates
      * @param retrieverId Retriever ID for grounded templates
      * @param templateType Type of template being executed
-     * @return String response from Einstein prompt template
+     * @return PromptExecutionResult containing result text and resolved prompt
      */
-    private String executePromptTemplate(String templateId, Prompt_Test__c test, String contextData, String searchQuery, String retrieverId, String templateType) {
+    private PromptExecutionResult executePromptTemplate(String templateId, Prompt_Test__c test, String contextData, String searchQuery, String retrieverId, String templateType) {
         try {
             System.debug('Executing template: ' + templateId + ' (type: ' + templateType + ')');
             
@@ -477,16 +508,24 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             promptGenerationsInput.additionalConfig.applicationName = APPLICATION_NAME;
             promptGenerationsInput.isPreview = false;
             
+            // Debug input parameters before API call
+            debugInputParameters(templateId, templateType, promptGenerationsInput, contextData, searchQuery, retrieverId);
+            
             // Call the service to generate messages
             ConnectApi.EinsteinPromptTemplateGenerationsRepresentation generationsOutput = 
                 ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate(templateId, promptGenerationsInput);
             
-            // Extract the generated text
+            // Debug complete response after API call
+            debugConnectApiResponse(generationsOutput, templateId, templateType);
+            
+            // Extract the generated text and resolved prompt
             if (generationsOutput != null && generationsOutput.generations != null && !generationsOutput.generations.isEmpty()) {
-                return generationsOutput.generations[0].text;
+                String resultText = generationsOutput.generations[0].text;
+                String resolvedPrompt = generationsOutput.prompt; // This contains the resolved prompt with substituted values
+                return new PromptExecutionResult(resultText, resolvedPrompt);
             }
             
-            return ERROR_NO_RESPONSE_GENERATED;
+            return new PromptExecutionResult(ERROR_NO_RESPONSE_GENERATED, null);
             
         } catch (Exception e) {
             String errorMsg = ERROR_EXECUTING_PROMPT + templateId + ', type: ' + templateType + '): ' + e.getMessage();
@@ -907,5 +946,323 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             System.debug(ERROR_FORMATTING_RESULT + e.getMessage());
             return ERROR_FORMATTING_RESULT + e.getMessage() + RAW_RESULT_PREFIX + groundedResult;
         }
+    }
+    
+    // ===========================================
+    // DEBUG METHODS
+    // ===========================================
+    
+    /**
+     * @description Logs input parameters before calling ConnectApi
+     * @param templateId Template ID being called
+     * @param templateType Type of template
+     * @param promptInput Input parameters object
+     * @param contextData Context data being sent
+     * @param searchQuery Search query (if applicable)
+     * @param retrieverId Retriever ID (if applicable)
+     */
+    private void debugInputParameters(String templateId, String templateType, ConnectApi.EinsteinPromptTemplateGenerationsInput promptInput, String contextData, String searchQuery, String retrieverId) {
+        System.debug(DEBUG_SEPARATOR);
+        System.debug(DEBUG_INPUT_PARAMS);
+        System.debug(DEBUG_SEPARATOR);
+        System.debug('Template ID: ' + (templateId ?? DEBUG_NULL_VALUE));
+        System.debug('Template Type: ' + (templateType ?? DEBUG_NULL_VALUE));
+        System.debug('Timestamp: ' + System.now());
+        System.debug(DEBUG_SECTION_SEPARATOR);
+        
+        // Log additional configuration
+        if (promptInput.additionalConfig != null) {
+            System.debug('Additional Config:');
+            System.debug('  - Number of Generations: ' + promptInput.additionalConfig.numGenerations);
+            System.debug('  - Enable PII Masking: ' + promptInput.additionalConfig.enablePiiMasking);
+            System.debug('  - Application Name: ' + (promptInput.additionalConfig.applicationName ?? DEBUG_NULL_VALUE));
+        }
+        System.debug('Is Preview: ' + promptInput.isPreview);
+        System.debug(DEBUG_SECTION_SEPARATOR);
+        
+        // Log input parameters
+        System.debug('Input Parameters:');
+        if (promptInput.inputParams != null && !promptInput.inputParams.isEmpty()) {
+            for (String key : promptInput.inputParams.keySet()) {
+                ConnectApi.WrappedValue wrappedValue = promptInput.inputParams.get(key);
+                if (wrappedValue != null && wrappedValue.value != null) {
+                    System.debug('  - ' + key + ': ' + JSON.serializePretty(wrappedValue.value));
+                } else {
+                    System.debug('  - ' + key + ': ' + DEBUG_NULL_VALUE);
+                }
+            }
+        } else {
+            System.debug('  ' + DEBUG_EMPTY_LIST);
+        }
+        
+        System.debug(DEBUG_SECTION_SEPARATOR);
+        System.debug('Context Data Length: ' + (contextData != null ? String.valueOf(contextData.length()) : '0'));
+        System.debug('Search Query: ' + (searchQuery ?? DEBUG_NULL_VALUE));
+        System.debug('Retriever ID: ' + (retrieverId ?? DEBUG_NULL_VALUE));
+        System.debug(DEBUG_SEPARATOR);
+    }
+    
+    /**
+     * @description Logs complete ConnectApi response with all available attributes
+     * @param generationsOutput Response from ConnectApi call
+     * @param templateId Template ID that was called
+     * @param templateType Type of template that was called
+     */
+    private void debugConnectApiResponse(ConnectApi.EinsteinPromptTemplateGenerationsRepresentation generationsOutput, String templateId, String templateType) {
+        System.debug(DEBUG_SEPARATOR);
+        System.debug(DEBUG_CONNECTAPI_START);
+        System.debug(DEBUG_SEPARATOR);
+        System.debug('Template ID: ' + (templateId ?? DEBUG_NULL_VALUE));
+        System.debug('Template Type: ' + (templateType ?? DEBUG_NULL_VALUE));
+        System.debug('Response Timestamp: ' + System.now());
+        System.debug(DEBUG_SECTION_SEPARATOR);
+        
+        if (generationsOutput == null) {
+            System.debug('ERROR: generationsOutput is null');
+            System.debug(DEBUG_SEPARATOR);
+            return;
+        }
+        
+        // Core response properties
+        debugCoreProperties(generationsOutput);
+        
+        // Parameters
+        debugParameters(generationsOutput.parameters);
+        
+        // Messages
+        debugRequestMessages(generationsOutput.requestMessages);
+        debugResponseMessages(generationsOutput.responseMessages);
+        debugSlotsMaskingInformation(generationsOutput.slotsMaskingInformation);
+        
+        // Generations and errors
+        debugGenerations(generationsOutput.generations);
+        debugGenerationErrors(generationsOutput.generationErrors);
+        
+        // Citations
+        debugCitations(generationsOutput.citations);
+        
+        // Note: fileData property not available until API version 63.0
+        
+        System.debug(DEBUG_SEPARATOR);
+        System.debug(DEBUG_CONNECTAPI_END);
+        System.debug(DEBUG_SEPARATOR);
+    }
+    
+    /**
+     * @description Debugs core properties of the response
+     * @param generationsOutput Response object
+     */
+    private void debugCoreProperties(ConnectApi.EinsteinPromptTemplateGenerationsRepresentation generationsOutput) {
+        System.debug('CORE PROPERTIES:');
+        System.debug('Request ID: ' + (generationsOutput.requestId ?? DEBUG_NULL_VALUE));
+        System.debug('Prompt Template Dev Name: ' + (generationsOutput.promptTemplateDevName ?? DEBUG_NULL_VALUE));
+        System.debug('Is Summarized: ' + (generationsOutput.isSummarized != null ? String.valueOf(generationsOutput.isSummarized) : DEBUG_NULL_VALUE));
+        
+        if (String.isNotBlank(generationsOutput.prompt)) {
+            System.debug('Resolved Prompt Length: ' + generationsOutput.prompt.length());
+            System.debug('Resolved Prompt: ' + generationsOutput.prompt);
+        } else {
+            System.debug('Resolved Prompt: ' + DEBUG_NULL_VALUE);
+        }
+        System.debug(DEBUG_SECTION_SEPARATOR);
+    }
+    
+    /**
+     * @description Debugs parameters object
+     * @param parameters Parameters object
+     */
+    private void debugParameters(ConnectApi.WrappedMapObject parameters) {
+        System.debug('PARAMETERS:');
+        if (parameters != null) {
+            try {
+                String parametersJson = JSON.serializePretty(parameters);
+                System.debug(parametersJson);
+            } catch (Exception e) {
+                System.debug('Error serializing parameters: ' + e.getMessage());
+            }
+        } else {
+            System.debug(DEBUG_NULL_VALUE);
+        }
+        System.debug(DEBUG_SECTION_SEPARATOR);
+    }
+    
+    /**
+     * @description Debugs request messages
+     * @param requestMessages List of request messages
+     */
+    private void debugRequestMessages(Object requestMessages) {
+        System.debug('REQUEST MESSAGES:');
+        if (requestMessages != null) {
+            try {
+                String messageJson = JSON.serializePretty(requestMessages);
+                System.debug(messageJson);
+            } catch (Exception e) {
+                System.debug('Error serializing request messages: ' + e.getMessage());
+                System.debug('Request Messages (toString): ' + String.valueOf(requestMessages));
+            }
+        } else {
+            System.debug(DEBUG_NULL_VALUE);
+        }
+        System.debug(DEBUG_SECTION_SEPARATOR);
+    }
+    
+    /**
+     * @description Debugs response messages
+     * @param responseMessages List of response messages
+     */
+    private void debugResponseMessages(Object responseMessages) {
+        System.debug('RESPONSE MESSAGES:');
+        if (responseMessages != null) {
+            try {
+                String messageJson = JSON.serializePretty(responseMessages);
+                System.debug(messageJson);
+            } catch (Exception e) {
+                System.debug('Error serializing response messages: ' + e.getMessage());
+                System.debug('Response Messages (toString): ' + String.valueOf(responseMessages));
+            }
+        } else {
+            System.debug(DEBUG_NULL_VALUE);
+        }
+        System.debug(DEBUG_SECTION_SEPARATOR);
+    }
+    
+    /**
+     * @description Debugs slots masking information
+     * @param slotsMaskingInfo List of masking information
+     */
+    private void debugSlotsMaskingInformation(Object slotsMaskingInfo) {
+        System.debug('SLOTS MASKING INFORMATION:');
+        if (slotsMaskingInfo != null) {
+            try {
+                String maskDataJson = JSON.serializePretty(slotsMaskingInfo);
+                System.debug(maskDataJson);
+            } catch (Exception e) {
+                System.debug('Error serializing slots masking information: ' + e.getMessage());
+                System.debug('Slots Masking Info (toString): ' + String.valueOf(slotsMaskingInfo));
+            }
+        } else {
+            System.debug(DEBUG_NULL_VALUE);
+        }
+        System.debug(DEBUG_SECTION_SEPARATOR);
+    }
+    
+    /**
+     * @description Debugs generations list
+     * @param generations List of generation items
+     */
+    private void debugGenerations(List<ConnectApi.EinsteinLlmGenerationItemOutput> generations) {
+        System.debug('GENERATIONS:');
+        if (generations != null && !generations.isEmpty()) {
+            System.debug(DEBUG_LIST_SIZE_PREFIX + generations.size() + DEBUG_LIST_SIZE_SUFFIX);
+            for (Integer i = 0; i < generations.size(); i++) {
+                ConnectApi.EinsteinLlmGenerationItemOutput generation = generations[i];
+                System.debug('Generation ' + (i + 1) + ':');
+                if (generation != null) {
+                    System.debug('  Text Length: ' + (generation.text != null ? String.valueOf(generation.text.length()) : '0'));
+                    System.debug('  Text: ' + (generation.text ?? DEBUG_NULL_VALUE));
+                    
+                    // Parameters (if available)
+                    if (generation.parameters != null) {
+                        try {
+                            String parametersJson = JSON.serializePretty(generation.parameters);
+                            System.debug('  Parameters: ' + parametersJson);
+                        } catch (Exception e) {
+                            System.debug('  Parameters: Error serializing - ' + e.getMessage());
+                        }
+                    } else {
+                        System.debug('  Parameters: ' + DEBUG_NULL_VALUE);
+                    }
+                    
+                    // Try to serialize the entire generation object to see all available properties
+                    try {
+                        String fullGenerationJson = JSON.serializePretty(generation);
+                        System.debug('  Full Generation Object: ' + fullGenerationJson);
+                    } catch (Exception e) {
+                        System.debug('  Full Generation Object: Error serializing - ' + e.getMessage());
+                        System.debug('  Generation toString: ' + String.valueOf(generation));
+                    }
+                } else {
+                    System.debug('  ' + DEBUG_NULL_VALUE);
+                }
+            }
+        } else {
+            System.debug(generations == null ? DEBUG_NULL_VALUE : DEBUG_EMPTY_LIST);
+        }
+        System.debug(DEBUG_SECTION_SEPARATOR);
+    }
+    
+    /**
+     * @description Debugs generation errors
+     * @param generationErrors List of generation errors
+     */
+    private void debugGenerationErrors(List<ConnectApi.EinsteinPromptTemplateGenerationsError> generationErrors) {
+        System.debug('GENERATION ERRORS:');
+        if (generationErrors != null && !generationErrors.isEmpty()) {
+            System.debug(DEBUG_LIST_SIZE_PREFIX + generationErrors.size() + DEBUG_LIST_SIZE_SUFFIX);
+            for (Integer i = 0; i < generationErrors.size(); i++) {
+                ConnectApi.EinsteinPromptTemplateGenerationsError error = generationErrors[i];
+                System.debug('Error ' + (i + 1) + ':');
+                if (error != null) {
+                    try {
+                        String errorJson = JSON.serializePretty(error);
+                        System.debug(errorJson);
+                    } catch (Exception e) {
+                        System.debug('  Error serializing generation error: ' + e.getMessage());
+                    }
+                } else {
+                    System.debug('  ' + DEBUG_NULL_VALUE);
+                }
+            }
+        } else {
+            System.debug(generationErrors == null ? DEBUG_NULL_VALUE : DEBUG_EMPTY_LIST);
+        }
+        System.debug(DEBUG_SECTION_SEPARATOR);
+    }
+    
+    /**
+     * @description Debugs citations
+     * @param citations Citations object
+     */
+    private void debugCitations(ConnectApi.EinsteinLlmGenerationCitationOutput citations) {
+        System.debug('CITATIONS:');
+        if (citations != null) {
+            try {
+                String citationsJson = JSON.serializePretty(citations);
+                System.debug(citationsJson);
+            } catch (Exception e) {
+                System.debug('Error serializing citations: ' + e.getMessage());
+            }
+        } else {
+            System.debug(DEBUG_NULL_VALUE);
+        }
+        System.debug(DEBUG_SECTION_SEPARATOR);
+    }
+    
+    /**
+     * @description Debugs file data
+     * @param fileData List of file data
+     */
+    private void debugFileData(List<ConnectApi.EinsteinPromptTemplateAttachment> fileData) {
+        System.debug('FILE DATA:');
+        if (fileData != null && !fileData.isEmpty()) {
+            System.debug(DEBUG_LIST_SIZE_PREFIX + fileData.size() + DEBUG_LIST_SIZE_SUFFIX);
+            for (Integer i = 0; i < fileData.size(); i++) {
+                ConnectApi.EinsteinPromptTemplateAttachment attachment = fileData[i];
+                System.debug('File ' + (i + 1) + ':');
+                if (attachment != null) {
+                    try {
+                        String attachmentJson = JSON.serializePretty(attachment);
+                        System.debug(attachmentJson);
+                    } catch (Exception e) {
+                        System.debug('  Error serializing file attachment: ' + e.getMessage());
+                    }
+                } else {
+                    System.debug('  ' + DEBUG_NULL_VALUE);
+                }
+            }
+        } else {
+            System.debug(fileData == null ? DEBUG_NULL_VALUE : DEBUG_EMPTY_LIST);
+        }
+        System.debug(DEBUG_SECTION_SEPARATOR);
     }
 }

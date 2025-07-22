@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Primary_Resolved_Prompt__c</fullName>
+    <description>The resolved prompt text from the primary prompt template with all input parameters substituted. This shows exactly what prompt was sent to Einstein AI.</description>
+    <label>Primary Resolved Prompt</label>
+    <length>131072</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>10</visibleLines>
+</CustomField>

@@ -25,9 +25,11 @@
         <members>Prompt_Test__c.Case__c</members>
         <members>Prompt_Test__c.Customer_Utterance__c</members>
         <members>Prompt_Test__c.Messaging_Session__c</members>
+        <members>Prompt_Test__c.Primary_Resolved_Prompt__c</members>
         <members>Prompt_Test__c.Primary_Result__c</members>
         <members>Prompt_Test__c.Prompt_Test_Batch__c</members>
         <members>Prompt_Test__c.Result__c</members>
+        <members>Prompt_Test__c.Secondary_Resolved_Prompt__c</members>
         <members>Prompt_Test__c.Secondary_Result__c</members>
         <members>Prompt_Test__c.Status__c</members>
         <members>Prompt_Test__c.Transcript__c</members>
