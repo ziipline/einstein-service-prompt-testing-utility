@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Raw_Result__c</fullName>
+    <description>Stores the raw JSON response from Einstein templates before formatting for display. Used by grounded tests to extract search queries from related contextual test results.</description>
+    <label>Raw Result</label>
+    <length>131072</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>10</visibleLines>
+</CustomField>

@@ -21,6 +21,11 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Request_ID__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
         <editable>true</editable>
         <field>Prompt_Test__c.Result__c</field>
         <readable>true</readable>
@@ -38,6 +43,16 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>Prompt_Test__c.Utterance_Sequence__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test__c.Primary_Resolved_Prompt__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test__c.Secondary_Resolved_Prompt__c</field>
         <readable>true</readable>
     </fieldPermissions>
     
