@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Related_Test__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Links Service Reply - Grounded tests to their corresponding Service Reply - Contextual test. Used to establish the relationship between the two phases of Service Reply processing.</description>
+    <externalId>false</externalId>
+    <label>Related Test</label>
+    <referenceTo>Prompt_Test__c</referenceTo>
+    <relationshipLabel>Related Prompt Tests</relationshipLabel>
+    <relationshipName>Related_Prompt_Tests</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

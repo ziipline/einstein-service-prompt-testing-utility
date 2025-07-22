@@ -72,16 +72,6 @@
                 <identifier>RecordVoice_Call_cField</identifier>
             </fieldInstance>
         </itemInstances>
-        <itemInstances>
-            <fieldInstance>
-                <fieldInstanceProperties>
-                    <name>uiBehavior</name>
-                    <value>none</value>
-                </fieldInstanceProperties>
-                <fieldItem>Record.Customer_Utterance__c</fieldItem>
-                <identifier>RecordCustomer_Utterance_cField</identifier>
-            </fieldInstance>
-        </itemInstances>
         <name>Facet-9d0263d7-bbc4-4f17-b8b8-c4dd2b94b8ac</name>
         <type>Facet</type>
     </flexiPageRegions>
@@ -94,6 +84,26 @@
                 </fieldInstanceProperties>
                 <fieldItem>Record.Transcript__c</fieldItem>
                 <identifier>RecordTranscript_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Customer_Utterance__c</fieldItem>
+                <identifier>RecordCustomer_Utterance_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Request_ID__c</fieldItem>
+                <identifier>RecordRequest_ID_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <name>Facet-a7bd878d-01f4-47d8-bb5c-19efead78800</name>
@@ -130,25 +140,11 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.Primary_Resolved_Prompt__c</fieldItem>
-                <identifier>RecordPrimary_Resolved_Prompt_cField</identifier>
+                <fieldItem>Record.Resolved_Prompt__c</fieldItem>
+                <identifier>RecordResolved_Prompt_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <name>Facet-4abb4abb-2fce-4c3a-bb31-045e4ef59fce</name>
-        <type>Facet</type>
-    </flexiPageRegions>
-    <flexiPageRegions>
-        <itemInstances>
-            <fieldInstance>
-                <fieldInstanceProperties>
-                    <name>uiBehavior</name>
-                    <value>none</value>
-                </fieldInstanceProperties>
-                <fieldItem>Record.Secondary_Resolved_Prompt__c</fieldItem>
-                <identifier>RecordSecondary_Resolved_Prompt_cField</identifier>
-            </fieldInstance>
-        </itemInstances>
-        <name>Facet-0118dfe1-94e1-4de3-a46c-8cd15cbf23f5</name>
         <type>Facet</type>
     </flexiPageRegions>
     <flexiPageRegions>
@@ -162,16 +158,6 @@
                 <identifier>flexipage_column7</identifier>
             </componentInstance>
         </itemInstances>
-        <itemInstances>
-            <componentInstance>
-                <componentInstanceProperties>
-                    <name>body</name>
-                    <value>Facet-0118dfe1-94e1-4de3-a46c-8cd15cbf23f5</value>
-                </componentInstanceProperties>
-                <componentName>flexipage:column</componentName>
-                <identifier>flexipage_column8</identifier>
-            </componentInstance>
-        </itemInstances>
         <name>Facet-e7ace3e0-d5ef-4d0f-a3c7-55effcb82b97</name>
         <type>Facet</type>
     </flexiPageRegions>
@@ -182,25 +168,11 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.Primary_Result__c</fieldItem>
-                <identifier>RecordPrimary_Result_cField</identifier>
+                <fieldItem>Record.Result__c</fieldItem>
+                <identifier>RecordResult_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <name>Facet-c2a9eaee-3834-4ecf-b28a-b58736ec30c6</name>
-        <type>Facet</type>
-    </flexiPageRegions>
-    <flexiPageRegions>
-        <itemInstances>
-            <fieldInstance>
-                <fieldInstanceProperties>
-                    <name>uiBehavior</name>
-                    <value>none</value>
-                </fieldInstanceProperties>
-                <fieldItem>Record.Secondary_Result__c</fieldItem>
-                <identifier>RecordSecondary_Result_cField</identifier>
-            </fieldInstance>
-        </itemInstances>
-        <name>Facet-c5432b82-f211-4b84-b542-61b57e051484</name>
         <type>Facet</type>
     </flexiPageRegions>
     <flexiPageRegions>
@@ -212,16 +184,6 @@
                 </componentInstanceProperties>
                 <componentName>flexipage:column</componentName>
                 <identifier>flexipage_column3</identifier>
-            </componentInstance>
-        </itemInstances>
-        <itemInstances>
-            <componentInstance>
-                <componentInstanceProperties>
-                    <name>body</name>
-                    <value>Facet-c5432b82-f211-4b84-b542-61b57e051484</value>
-                </componentInstanceProperties>
-                <componentName>flexipage:column</componentName>
-                <identifier>flexipage_column4</identifier>
             </componentInstance>
         </itemInstances>
         <name>Facet-05483ab4-2094-413c-be81-69edda5c4953</name>
@@ -294,7 +256,7 @@
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>label</name>
-                    <value>Details</value>
+                    <value>Test Run</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>name</name>
@@ -347,16 +309,6 @@
                 <identifier>RecordPrompt_Test_Batch_cField</identifier>
             </fieldInstance>
         </itemInstances>
-        <itemInstances>
-            <fieldInstance>
-                <fieldInstanceProperties>
-                    <name>uiBehavior</name>
-                    <value>none</value>
-                </fieldInstanceProperties>
-                <fieldItem>Record.Result__c</fieldItem>
-                <identifier>RecordResult_cField</identifier>
-            </fieldInstance>
-        </itemInstances>
         <name>Facet-acd2cde1-cb10-4a44-8526-def9ff7361a4</name>
         <type>Facet</type>
     </flexiPageRegions>
@@ -383,21 +335,22 @@
         </itemInstances>
         <itemInstances>
             <fieldInstance>
-                <fieldItem>Record.Prompt_Test_Batch__r.Primary_Template_Id__c</fieldItem>
-                <identifier>RecordPrompt_Test_Batch_rPrimary_Template_Id_cField</identifier>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Template_Type__c</fieldItem>
+                <identifier>RecordTemplate_Type_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
             <fieldInstance>
-                <fieldItem>Record.Prompt_Test_Batch__r.Secondary_Template_Id__c</fieldItem>
-                <identifier>RecordPrompt_Test_Batch_rSecondary_Template_Id_cField</identifier>
-                <visibilityRule>
-                    <criteria>
-                        <leftValue>{!Record.Prompt_Test_Batch__r.Test_Type__c}</leftValue>
-                        <operator>EQUAL</operator>
-                        <rightValue>Service Replies</rightValue>
-                    </criteria>
-                </visibilityRule>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Template_Id__c</fieldItem>
+                <identifier>RecordTemplate_Id_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
@@ -443,7 +396,7 @@
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>label</name>
-                    <value>Test Run</value>
+                    <value>Batch</value>
                 </componentInstanceProperties>
                 <componentName>flexipage:fieldSection</componentName>
                 <identifier>flexipage_fieldSection3</identifier>
@@ -461,7 +414,7 @@
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>label</name>
-                    <value>Prompt Templates</value>
+                    <value>Prompt Template Used</value>
                 </componentInstanceProperties>
                 <componentName>flexipage:fieldSection</componentName>
                 <identifier>flexipage_fieldSection4</identifier>

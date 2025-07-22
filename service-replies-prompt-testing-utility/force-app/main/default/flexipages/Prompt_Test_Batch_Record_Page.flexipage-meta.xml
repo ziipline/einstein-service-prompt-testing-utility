@@ -117,10 +117,10 @@
                             <value>Status__c</value>
                         </valueListItems>
                         <valueListItems>
-                            <value>Primary_Result__c</value>
+                            <value>Template_Type__c</value>
                         </valueListItems>
                         <valueListItems>
-                            <value>Secondary_Result__c</value>
+                            <value>Result__c</value>
                         </valueListItems>
                     </valueList>
                 </componentInstanceProperties>
@@ -213,8 +213,8 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.Primary_Template_Id__c</fieldItem>
-                <identifier>RecordPrimary_Template_Id_cField</identifier>
+                <fieldItem>Record.Contextual_Template_Id__c</fieldItem>
+                <identifier>RecordContextual_Template_Id_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
@@ -223,15 +223,8 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.Secondary_Template_Id__c</fieldItem>
-                <identifier>RecordSecondary_Template_Id_cField</identifier>
-                <visibilityRule>
-                    <criteria>
-                        <leftValue>{!Record.Test_Type__c}</leftValue>
-                        <operator>EQUAL</operator>
-                        <rightValue>Service Replies</rightValue>
-                    </criteria>
-                </visibilityRule>
+                <fieldItem>Record.Grounded_Template_Id__c</fieldItem>
+                <identifier>RecordGrounded_Template_Id_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>

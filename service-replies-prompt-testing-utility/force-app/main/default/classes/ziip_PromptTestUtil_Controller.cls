@@ -725,17 +725,17 @@ public with sharing class ziip_PromptTestUtil_Controller {
         
         // STEP 2: Perform all DML operations after callouts are complete
         
-        // Create the test batch
+        // Create the test batch - populate template fields for visibility
         Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
             Test_Type__c = 'Service Replies',
             Status__c = 'Pending',
-            Primary_Template_Id__c = primaryTemplateId,
-            Secondary_Template_Id__c = secondaryTemplateId,
-            Retriever_Id__c = retrieverId
+            Retriever_Id__c = retrieverId,
+            Contextual_Template_Id__c = primaryTemplateId,
+            Grounded_Template_Id__c = secondaryTemplateId
         );
         insert testBatch;
         
-        // Create test records for each customer utterance
+        // Create test records - each customer utterance gets TWO test records (contextual + grounded)
         List<Prompt_Test__c> tests = new List<Prompt_Test__c>();
         for (Id sessionId : sessionUtterancesMap.keySet()) {
             List<Map<String, Object>> customerUtterances = sessionUtterancesMap.get(sessionId);
@@ -745,14 +745,33 @@ public with sharing class ziip_PromptTestUtil_Controller {
                 String customerMessage = (String) utterance.get('message');
                 String cumulativeTranscript = (String) utterance.get('cumulativeTranscript');
                 
-                tests.add(new Prompt_Test__c(
+                // Create contextual test record
+                Prompt_Test__c contextualTest = new Prompt_Test__c(
                     Prompt_Test_Batch__c = testBatch.Id,
                     Messaging_Session__c = sessionId,
                     Status__c = 'Pending',
                     Customer_Utterance__c = customerMessage,
                     Utterance_Sequence__c = utteranceSequence,
-                    Transcript__c = cumulativeTranscript
-                ));
+                    Transcript__c = cumulativeTranscript,
+                    Template_Id__c = primaryTemplateId,
+                    Template_Type__c = 'Service Reply - Contextual',
+                    Related_Test__c = null
+                );
+                tests.add(contextualTest);
+                
+                // Create grounded test record (will be linked after contextual test is inserted)
+                Prompt_Test__c groundedTest = new Prompt_Test__c(
+                    Prompt_Test_Batch__c = testBatch.Id,
+                    Messaging_Session__c = sessionId,
+                    Status__c = 'Pending',
+                    Customer_Utterance__c = customerMessage,
+                    Utterance_Sequence__c = utteranceSequence,
+                    Transcript__c = cumulativeTranscript,
+                    Template_Id__c = secondaryTemplateId,
+                    Template_Type__c = 'Service Reply - Grounded',
+                    Related_Test__c = null // Will be set after contextual test is inserted
+                );
+                tests.add(groundedTest);
                 
                 utteranceSequence++;
             }
@@ -761,6 +780,21 @@ public with sharing class ziip_PromptTestUtil_Controller {
         // Insert all test records
         if (!tests.isEmpty()) {
             insert tests;
+            
+            // Now link grounded tests to their contextual tests
+            List<Prompt_Test__c> testsToUpdate = new List<Prompt_Test__c>();
+            for (Integer i = 0; i < tests.size(); i += 2) {
+                Prompt_Test__c contextualTest = tests[i];
+                Prompt_Test__c groundedTest = tests[i + 1];
+                
+                // Link grounded test to contextual test
+                groundedTest.Related_Test__c = contextualTest.Id;
+                testsToUpdate.add(groundedTest);
+            }
+            
+            if (!testsToUpdate.isEmpty()) {
+                update testsToUpdate;
+            }
         }
         
         return new Map<String, Object>{
@@ -922,8 +956,7 @@ public with sharing class ziip_PromptTestUtil_Controller {
         // Create the test batch first
         Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
             Test_Type__c = testType,
-            Status__c = 'Pending',
-            Primary_Template_Id__c = templateId
+            Status__c = 'Pending'
         );
         insert testBatch;
         
@@ -951,7 +984,9 @@ public with sharing class ziip_PromptTestUtil_Controller {
                 tests.add(new Prompt_Test__c(
                     Prompt_Test_Batch__c = testBatch.Id,
                     Case__c = caseId,
-                    Status__c = 'Pending'
+                    Status__c = 'Pending',
+                    Template_Id__c = templateId,
+                    Template_Type__c = 'Case Summary'
                 ));
                 
                 casesProcessed++;
@@ -984,8 +1019,7 @@ public with sharing class ziip_PromptTestUtil_Controller {
         // Create the test batch first
         Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
             Test_Type__c = testType,
-            Status__c = 'Pending',
-            Primary_Template_Id__c = templateId
+            Status__c = 'Pending'
         );
         insert testBatch;
         
@@ -1022,7 +1056,9 @@ public with sharing class ziip_PromptTestUtil_Controller {
                     tests.add(new Prompt_Test__c(
                         Prompt_Test_Batch__c = testBatch.Id,
                         Messaging_Session__c = sessionId,
-                        Status__c = 'Pending'
+                        Status__c = 'Pending',
+                        Template_Id__c = templateId,
+                        Template_Type__c = 'Work Summary'
                     ));
                     
                     recordsProcessed++;
@@ -1052,7 +1088,9 @@ public with sharing class ziip_PromptTestUtil_Controller {
                     tests.add(new Prompt_Test__c(
                         Prompt_Test_Batch__c = testBatch.Id,
                         Voice_Call__c = voiceCallId,
-                        Status__c = 'Pending'
+                        Status__c = 'Pending',
+                        Template_Id__c = templateId,
+                        Template_Type__c = 'Work Summary'
                     ));
                     
                     recordsProcessed++;

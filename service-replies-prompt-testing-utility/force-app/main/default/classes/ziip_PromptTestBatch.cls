@@ -11,10 +11,12 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     public class PromptExecutionResult {
         public String resultText;
         public String resolvedPrompt;
+        public String requestId;
         
-        public PromptExecutionResult(String resultText, String resolvedPrompt) {
+        public PromptExecutionResult(String resultText, String resolvedPrompt, String requestId) {
             this.resultText = resultText;
             this.resolvedPrompt = resolvedPrompt;
+            this.requestId = requestId;
         }
     }
     
@@ -76,10 +78,10 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     // ===========================================
     // TEMPLATE TYPE CONSTANTS
     // ===========================================
-    private static final String TEMPLATE_TYPE_CONTEXTUAL = 'contextual';
-    private static final String TEMPLATE_TYPE_GROUNDED = 'grounded';
-    private static final String TEMPLATE_TYPE_CASE_SUMMARY = 'case_summary';
-    private static final String TEMPLATE_TYPE_WORK_SUMMARY = 'work_summary';
+    private static final String TEMPLATE_TYPE_SERVICE_CONTEXTUAL = 'Service Reply - Contextual';
+    private static final String TEMPLATE_TYPE_SERVICE_GROUNDED = 'Service Reply - Grounded';
+    private static final String TEMPLATE_TYPE_CASE_SUMMARY = 'Case Summary';
+    private static final String TEMPLATE_TYPE_WORK_SUMMARY = 'Work Summary';
     
     // ===========================================
     // FORMATTING CONSTANTS
@@ -160,12 +162,10 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     public Database.QueryLocator start(Database.BatchableContext bc) {
         return Database.getQueryLocator([
             SELECT Id, Prompt_Test_Batch__c, Messaging_Session__c, Case__c, Voice_Call__c, Status__c, 
-                   Transcript__c, Primary_Result__c, Secondary_Result__c,
-                   Primary_Resolved_Prompt__c, Secondary_Resolved_Prompt__c,
+                   Transcript__c, Result__c, Template_Id__c, Template_Type__c, 
+                   Resolved_Prompt__c, Related_Test__c, Raw_Result__c, Request_ID__c,
                    Customer_Utterance__c, Utterance_Sequence__c,
                    Prompt_Test_Batch__r.Test_Type__c,
-                   Prompt_Test_Batch__r.Primary_Template_Id__c,
-                   Prompt_Test_Batch__r.Secondary_Template_Id__c,
                    Prompt_Test_Batch__r.Retriever_Id__c
             FROM Prompt_Test__c 
             WHERE Prompt_Test_Batch__c IN :batchIds
@@ -216,28 +216,130 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     // ===========================================
     
     /**
-     * @description Main dispatcher method that routes processing based on test type
+     * @description Main processing method - executes the single template specified in the test record
      * @param test Prompt_Test__c record to process
      */
     private void processPromptTest(Prompt_Test__c test) {
         test.Status__c = STATUS_IN_PROGRESS;
-        String testType = getTestType(test);
         
-        System.debug('Processing test type: ' + testType + ' for test ID: ' + test.Id);
+        // Get template information from test record
+        String templateId = test.Template_Id__c;
+        String templateType = test.Template_Type__c;
         
-        switch on testType {
-            when 'Service Replies' {
-                processServiceRepliesTest(test);
+        System.debug('Processing template: ' + templateId + ' (type: ' + templateType + ') for test ID: ' + test.Id);
+        
+        if (String.isBlank(templateId)) {
+            throw new IllegalArgumentException('Template_Id__c is required for test execution');
+        }
+        
+        if (String.isBlank(templateType)) {
+            throw new IllegalArgumentException('Template_Type__c is required for test execution');
+        }
+        
+        // Execute the single template
+        PromptExecutionResult result = executeSingleTemplate(test, templateId, templateType);
+        
+        // Store raw result for contextual tests (needed by grounded tests to extract search query)
+        if (templateType == TEMPLATE_TYPE_SERVICE_CONTEXTUAL) {
+            test.Raw_Result__c = result.resultText; // Store raw JSON result
+        }
+        
+        // Store formatted result, resolved prompt, and request ID
+        test.Result__c = formatResult(result.resultText, templateType);
+        test.Resolved_Prompt__c = result.resolvedPrompt;
+        test.Request_ID__c = result.requestId;
+    }
+    
+    /**
+     * @description Executes a single template based on template type and context
+     * @param test Prompt_Test__c record to process
+     * @param templateId Template ID to execute
+     * @param templateType Template type for context routing
+     * @return PromptExecutionResult containing result and resolved prompt
+     */
+    private PromptExecutionResult executeSingleTemplate(Prompt_Test__c test, String templateId, String templateType) {
+        String contextData = getContextDataForTemplate(test, templateType);
+        String searchQuery = getSearchQueryForTemplate(test, templateType);
+        String retrieverId = getRetrieverId(test);
+        
+        // For grounded templates, validate search query before execution
+        if (templateType == TEMPLATE_TYPE_SERVICE_GROUNDED && !isValidSearchQuery(searchQuery)) {
+            String skipMessage = buildGroundedSkipMessage(searchQuery);
+            return new PromptExecutionResult(skipMessage, null, null);
+        }
+        
+        return executePromptTemplate(templateId, test, contextData, searchQuery, retrieverId, templateType);
+    }
+    
+    /**
+     * @description Gets appropriate context data based on template type
+     * @param test Prompt_Test__c record
+     * @param templateType Template type
+     * @return String context data for template execution
+     */
+    private String getContextDataForTemplate(Prompt_Test__c test, String templateType) {
+        switch on templateType {
+            when 'Service Reply - Contextual', 'Service Reply - Grounded' {
+                return getMessagingSessionTranscript(test);
             }
             when 'Case Summary' {
-                processCaseSummaryTest(test);
+                return getCaseContext(test);
             }
             when 'Work Summary' {
-                processWorkSummaryTest(test);
+                return getWorkContext(test);
             }
             when else {
-                // Backwards compatibility for null test types (assume Service Replies)
-                processServiceRepliesTest(test);
+                return '';
+            }
+        }
+    }
+    
+    /**
+     * @description Gets search query for grounded templates by looking up related contextual test
+     * @param test Prompt_Test__c record
+     * @param templateType Template type
+     * @return String search query for grounded templates
+     */
+    private String getSearchQueryForTemplate(Prompt_Test__c test, String templateType) {
+        if (templateType == TEMPLATE_TYPE_SERVICE_GROUNDED && test.Related_Test__c != null) {
+            // Get the search query from the related contextual test's raw result
+            List<Prompt_Test__c> relatedTests = [
+                SELECT Id, Raw_Result__c 
+                FROM Prompt_Test__c 
+                WHERE Id = :test.Related_Test__c 
+                LIMIT 1
+            ];
+            
+            if (!relatedTests.isEmpty() && String.isNotBlank(relatedTests[0].Raw_Result__c)) {
+                return extractSearchQueryFromResult(relatedTests[0].Raw_Result__c);
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * @description Formats result based on template type
+     * @param resultText Raw result text from template execution
+     * @param templateType Template type for formatting logic
+     * @return String formatted result
+     */
+    private String formatResult(String resultText, String templateType) {
+        switch on templateType {
+            when 'Service Reply - Contextual' {
+                return formatContextResult(resultText);
+            }
+            when 'Service Reply - Grounded' {
+                return formatGroundedResult(resultText);
+            }
+            when 'Case Summary' {
+                return formatGenericResult(resultText, CASE_SUMMARY_HEADER);
+            }
+            when 'Work Summary' {
+                return formatGenericResult(resultText, WORK_SUMMARY_HEADER);
+            }
+            when else {
+                return resultText;
             }
         }
     }
@@ -252,103 +354,6 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         return String.isNotBlank(testType) ? testType : TEST_TYPE_SERVICE_REPLIES;
     }
     
-    /**
-     * @description Processes Service Replies tests (contextual + grounded templates)
-     * @param test Prompt_Test__c record to process
-     */
-    private void processServiceRepliesTest(Prompt_Test__c test) {
-        System.debug('Processing Service Replies test');
-        
-        String transcript = getMessagingSessionTranscript(test);
-        
-        // Execute primary (contextual) template
-        String primaryTemplateId = getPrimaryTemplateId(test);
-        if (String.isNotBlank(primaryTemplateId)) {
-            PromptExecutionResult contextResult = executePromptTemplate(
-                primaryTemplateId,
-                test,
-                transcript,
-                null,
-                null,
-                TEMPLATE_TYPE_CONTEXTUAL
-            );
-            
-            test.Primary_Result__c = formatServiceRepliesResult(contextResult.resultText, TEMPLATE_TYPE_CONTEXTUAL);
-            test.Primary_Resolved_Prompt__c = contextResult.resolvedPrompt;
-            
-            // Extract search query for grounded template
-            String searchQuery = extractSearchQueryFromResult(contextResult.resultText);
-            
-            // Execute secondary (grounded) template if configured and search query is valid
-            String secondaryTemplateId = getSecondaryTemplateId(test);
-            if (String.isNotBlank(secondaryTemplateId) && isValidSearchQuery(searchQuery)) {
-                PromptExecutionResult groundedResult = executePromptTemplate(
-                    secondaryTemplateId,
-                    test,
-                    transcript,
-                    searchQuery,
-                    getRetrieverId(test),
-                    TEMPLATE_TYPE_GROUNDED
-                );
-                
-                test.Secondary_Result__c = formatServiceRepliesResult(groundedResult.resultText, TEMPLATE_TYPE_GROUNDED);
-                test.Secondary_Resolved_Prompt__c = groundedResult.resolvedPrompt;
-            } else {
-                String skipReason = buildGroundedSkipMessage(searchQuery);
-                test.Secondary_Result__c = skipReason;
-            }
-        }
-    }
-    
-    /**
-     * @description Processes Case Summary tests (single template)
-     * @param test Prompt_Test__c record to process
-     */
-    private void processCaseSummaryTest(Prompt_Test__c test) {
-        System.debug('Processing Case Summary test');
-        
-        String caseContext = getCaseContext(test);
-        String primaryTemplateId = getPrimaryTemplateId(test);
-        
-        if (String.isNotBlank(primaryTemplateId)) {
-            PromptExecutionResult result = executePromptTemplate(
-                primaryTemplateId,
-                test,
-                caseContext,
-                null,
-                null,
-                TEMPLATE_TYPE_CASE_SUMMARY
-            );
-            
-            test.Primary_Result__c = formatGenericResult(result.resultText, CASE_SUMMARY_HEADER);
-            test.Primary_Resolved_Prompt__c = result.resolvedPrompt;
-        }
-    }
-    
-    /**
-     * @description Processes Work Summary tests (single template, messaging or voice call)
-     * @param test Prompt_Test__c record to process
-     */
-    private void processWorkSummaryTest(Prompt_Test__c test) {
-        System.debug('Processing Work Summary test');
-        
-        String workContext = getWorkContext(test);
-        String primaryTemplateId = getPrimaryTemplateId(test);
-        
-        if (String.isNotBlank(primaryTemplateId)) {
-            PromptExecutionResult result = executePromptTemplate(
-                primaryTemplateId,
-                test,
-                workContext,
-                null,
-                null,
-                TEMPLATE_TYPE_WORK_SUMMARY
-            );
-            
-            test.Primary_Result__c = formatGenericResult(result.resultText, WORK_SUMMARY_HEADER);
-            test.Primary_Resolved_Prompt__c = result.resolvedPrompt;
-        }
-    }
     
     // ===========================================
     // CONTEXT EXTRACTION METHODS
@@ -518,14 +523,15 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             // Debug complete response after API call
             debugConnectApiResponse(generationsOutput, templateId, templateType);
             
-            // Extract the generated text and resolved prompt
+            // Extract the generated text, resolved prompt, and request ID
             if (generationsOutput != null && generationsOutput.generations != null && !generationsOutput.generations.isEmpty()) {
                 String resultText = generationsOutput.generations[0].text;
                 String resolvedPrompt = generationsOutput.prompt; // This contains the resolved prompt with substituted values
-                return new PromptExecutionResult(resultText, resolvedPrompt);
+                String requestId = generationsOutput.requestId; // Capture the request ID from Einstein API response
+                return new PromptExecutionResult(resultText, resolvedPrompt, requestId);
             }
             
-            return new PromptExecutionResult(ERROR_NO_RESPONSE_GENERATED, null);
+            return new PromptExecutionResult(ERROR_NO_RESPONSE_GENERATED, null, null);
             
         } catch (Exception e) {
             String errorMsg = ERROR_EXECUTING_PROMPT + templateId + ', type: ' + templateType + '): ' + e.getMessage();
@@ -551,7 +557,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         contextValue.value = contextData;
         
         switch on templateType {
-            when 'contextual', 'grounded' {
+            when 'Service Reply - Contextual', 'Service Reply - Grounded' {
                 inputParams.put(INPUT_CONVERSATION_TRANSCRIPT, contextValue);
                 // Add messaging session reference
                 if (test.Messaging_Session__c != null) {
@@ -562,7 +568,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                     inputParams.put(INPUT_MESSAGING_SESSION, sessionValue);
                 }
             }
-            when 'case_summary' {
+            when 'Case Summary' {
                 // Case Summary templates expect caseToSummarize parameter with case reference
                 if (test.Case__c != null) {
                     Map<String, String> caseInput = new Map<String, String>();
@@ -572,7 +578,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                     inputParams.put(INPUT_CASE_TO_SUMMARIZE, caseValue);
                 }
             }
-            when 'work_summary' {
+            when 'Work Summary' {
                 // Work Summary templates work directly with object references
                 if (test.Messaging_Session__c != null) {
                     // For messaging sessions, only provide the session reference
@@ -593,7 +599,7 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         }
         
         // Add retriever and search query for grounded templates
-        if (templateType == 'grounded' && String.isNotBlank(retrieverId)) {
+        if (templateType == TEMPLATE_TYPE_SERVICE_GROUNDED && String.isNotBlank(retrieverId)) {
             ConnectApi.WrappedValue retrieverValue = new ConnectApi.WrappedValue();
             retrieverValue.value = retrieverId;
             inputParams.put(INPUT_RETRIEVER_ID_OR_NAME, retrieverValue);
@@ -610,23 +616,6 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     // HELPER METHODS
     // ===========================================
     
-    /**
-     * @description Gets primary template ID
-     * @param test Prompt_Test__c record
-     * @return String primary template ID
-     */
-    private String getPrimaryTemplateId(Prompt_Test__c test) {
-        return test.Prompt_Test_Batch__r.Primary_Template_Id__c;
-    }
-    
-    /**
-     * @description Gets secondary template ID
-     * @param test Prompt_Test__c record
-     * @return String secondary template ID
-     */
-    private String getSecondaryTemplateId(Prompt_Test__c test) {
-        return test.Prompt_Test_Batch__r.Secondary_Template_Id__c;
-    }
     
     /**
      * @description Gets retriever ID with default fallback
@@ -640,27 +629,13 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     }
     
     /**
-     * @description Validates template configuration based on test type
+     * @description Validates template configuration for individual test records
      * @param test Prompt_Test__c record to validate
-     * @return Boolean indicating if templates are properly configured
+     * @return Boolean indicating if template is properly configured
      */
     private Boolean validateTemplateConfiguration(Prompt_Test__c test) {
-        String testType = getTestType(test);
-        String primaryTemplateId = getPrimaryTemplateId(test);
-        
-        // Primary template is always required
-        if (String.isBlank(primaryTemplateId)) {
-            return false;
-        }
-        
-        // For Service Replies, both primary and secondary templates are required
-        if (testType == TEST_TYPE_SERVICE_REPLIES) {
-            String secondaryTemplateId = getSecondaryTemplateId(test);
-            return String.isNotBlank(secondaryTemplateId);
-        }
-        
-        // For other test types, only primary template is required
-        return true;
+        // In the new model, each test record must have Template_Id__c and Template_Type__c
+        return String.isNotBlank(test.Template_Id__c) && String.isNotBlank(test.Template_Type__c);
     }
     
     /**
@@ -671,7 +646,6 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private void setTestFailed(Prompt_Test__c test, String errorMessage) {
         test.Status__c = STATUS_FAILED;
         test.Result__c = ERROR_PREFIX + errorMessage;
-        test.Primary_Result__c = ERROR_PREFIX + errorMessage;
     }
     
     /**
@@ -881,71 +855,164 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 return ERROR_NO_RESULT;
             }
             
-            Map<String, Object> resultMap = (Map<String, Object>) JSON.deserializeUntyped(groundedResult);
-            String formatted = GROUNDED_HEADER;
-            
-            // Extract responses using constants
-            if (resultMap.containsKey(JSON_RESPONSES) && resultMap.get(JSON_RESPONSES) instanceof List<Object>) {
-                List<Object> responses = (List<Object>) resultMap.get(JSON_RESPONSES);
-                
-                Integer responseCount = RESPONSE_COUNTER_START;
-                for (Object responseObj : responses) {
-                    if (responseObj instanceof Map<String, Object>) {
-                        Map<String, Object> response = (Map<String, Object>) responseObj;
-                        
-                        formatted += RESPONSE_PREFIX + responseCount + ':' + NEWLINE;
-                        formatted += RESPONSE_DELIMITER;
-                        
-                        if (response.containsKey(JSON_RESPONSE)) {
-                            formatted += TEXT_LABEL + String.valueOf(response.get(JSON_RESPONSE)) + NEWLINE;
-                        }
-                        
-                        if (response.containsKey(JSON_INTENT)) {
-                            formatted += INTENT_LABEL + String.valueOf(response.get(JSON_INTENT)) + NEWLINE;
-                        }
-                        
-                        if (response.containsKey(JSON_ARTICLE_RELEVANT)) {
-                            formatted += ARTICLE_RELEVANT_LABEL + String.valueOf(response.get(JSON_ARTICLE_RELEVANT)) + NEWLINE;
-                        }
-                        
-                        if (response.containsKey(JSON_SNIPPET_IDENTIFIED)) {
-                            formatted += SNIPPET_IDENTIFIED_LABEL + String.valueOf(response.get(JSON_SNIPPET_IDENTIFIED)) + NEWLINE;
-                        }
-                        
-                        // Extract source information using constants
-                        if (response.containsKey(JSON_SOURCE) && response.get(JSON_SOURCE) instanceof Map<String, Object>) {
-                            Map<String, Object> source = (Map<String, Object>) response.get(JSON_SOURCE);
-                            formatted += SOURCE_INFO_SECTION;
-                            
-                            if (source.containsKey(JSON_SOURCE_RECORD_ID)) {
-                                formatted += RECORD_ID_LABEL + String.valueOf(source.get(JSON_SOURCE_RECORD_ID)) + NEWLINE;
-                            }
-                            
-                            if (source.containsKey(JSON_DATA_SOURCE_OBJECT)) {
-                                formatted += DATA_SOURCE_LABEL + String.valueOf(source.get(JSON_DATA_SOURCE_OBJECT)) + NEWLINE;
-                            }
-                            
-                            if (source.containsKey(JSON_SNIPPET_START) && source.containsKey(JSON_SNIPPET_END)) {
-                                formatted += SNIPPET_RANGE_LABEL;
-                                formatted += String.valueOf(source.get(JSON_SNIPPET_START));
-                                formatted += TO_SEPARATOR;
-                                formatted += String.valueOf(source.get(JSON_SNIPPET_END));
-                                formatted += NEWLINE;
-                            }
-                        }
-                        
-                        formatted += NEWLINE;
-                        responseCount++;
-                    }
-                }
+            // Check if this is a skip message (not JSON)
+            if (groundedResult.startsWith('Grounded template skipped:')) {
+                return GROUNDED_HEADER + groundedResult + DOUBLE_NEWLINE + 
+                       'Note: Grounded service replies require a valid search query from the contextual template. ' +
+                       'When the contextual template returns "none" or an empty search query, ' +
+                       'the grounded template cannot be executed as it would not have any content to search against.';
             }
             
-            return formatted;
+            String formatted = GROUNDED_HEADER;
+            
+            // Try to parse as List first (new grounded template structure)
+            try {
+                List<Object> responses = (List<Object>) JSON.deserializeUntyped(groundedResult);
+                return formatGroundedResponseList(responses, formatted);
+            } catch (Exception listEx) {
+                // If that fails, try the old Map structure
+                Map<String, Object> resultMap = (Map<String, Object>) JSON.deserializeUntyped(groundedResult);
+                return formatGroundedResponseMap(resultMap, formatted);
+            }
             
         } catch (Exception e) {
             System.debug(ERROR_FORMATTING_RESULT + e.getMessage());
             return ERROR_FORMATTING_RESULT + e.getMessage() + RAW_RESULT_PREFIX + groundedResult;
         }
+    }
+    
+    /**
+     * @description Formats grounded results when response is a direct List
+     * @param responses List of response objects
+     * @param formatted Existing formatted string
+     * @return String formatted result
+     */
+    private String formatGroundedResponseList(List<Object> responses, String formatted) {
+        if (responses != null && !responses.isEmpty()) {
+            Integer responseCount = RESPONSE_COUNTER_START;
+            for (Object responseObj : responses) {
+                if (responseObj instanceof Map<String, Object>) {
+                    Map<String, Object> response = (Map<String, Object>) responseObj;
+                    
+                    formatted += RESPONSE_PREFIX + responseCount + ':' + NEWLINE;
+                    formatted += RESPONSE_DELIMITER;
+                    
+                    // Extract the main result text
+                    if (response.containsKey('result')) {
+                        formatted += TEXT_LABEL + String.valueOf(response.get('result')) + NEWLINE;
+                    }
+                    
+                    // Extract source information
+                    formatted += SOURCE_INFO_SECTION;
+                    
+                    if (response.containsKey('sourceObjectName')) {
+                        formatted += DATA_SOURCE_LABEL + String.valueOf(response.get('sourceObjectName')) + NEWLINE;
+                    }
+                    
+                    if (response.containsKey('fieldApiKey')) {
+                        formatted += '  - Field: ' + String.valueOf(response.get('fieldApiKey')) + NEWLINE;
+                    }
+                    
+                    // Extract scores
+                    if (response.containsKey('score')) {
+                        formatted += '  - Relevance Score: ' + String.valueOf(response.get('score')) + NEWLINE;
+                    }
+                    
+                    if (response.containsKey('vectorSearchScore')) {
+                        formatted += '  - Vector Search Score: ' + String.valueOf(response.get('vectorSearchScore')) + NEWLINE;
+                    }
+                    
+                    if (response.containsKey('keywordSearchScore')) {
+                        formatted += '  - Keyword Search Score: ' + String.valueOf(response.get('keywordSearchScore')) + NEWLINE;
+                    }
+                    
+                    // Check if there's a nested result array (second structure type)
+                    if (response.containsKey('result') && response.get('result') instanceof List<Object>) {
+                        List<Object> nestedResults = (List<Object>) response.get('result');
+                        for (Object nestedObj : nestedResults) {
+                            if (nestedObj instanceof Map<String, Object>) {
+                                Map<String, Object> nestedResult = (Map<String, Object>) nestedObj;
+                                if (nestedResult.containsKey('value')) {
+                                    formatted += '  - Source Content: ' + String.valueOf(nestedResult.get('value')) + NEWLINE;
+                                }
+                                if (nestedResult.containsKey('fieldName')) {
+                                    formatted += '  - Field Name: ' + String.valueOf(nestedResult.get('fieldName')) + NEWLINE;
+                                }
+                            }
+                        }
+                    }
+                    
+                    formatted += NEWLINE;
+                    responseCount++;
+                }
+            }
+        }
+        return formatted;
+    }
+    
+    /**
+     * @description Formats grounded results when response is a Map (old structure)
+     * @param resultMap Map containing responses
+     * @param formatted Existing formatted string
+     * @return String formatted result
+     */
+    private String formatGroundedResponseMap(Map<String, Object> resultMap, String formatted) {
+        // Extract responses using constants (old structure)
+        if (resultMap.containsKey(JSON_RESPONSES) && resultMap.get(JSON_RESPONSES) instanceof List<Object>) {
+            List<Object> responses = (List<Object>) resultMap.get(JSON_RESPONSES);
+            
+            Integer responseCount = RESPONSE_COUNTER_START;
+            for (Object responseObj : responses) {
+                if (responseObj instanceof Map<String, Object>) {
+                    Map<String, Object> response = (Map<String, Object>) responseObj;
+                    
+                    formatted += RESPONSE_PREFIX + responseCount + ':' + NEWLINE;
+                    formatted += RESPONSE_DELIMITER;
+                    
+                    if (response.containsKey(JSON_RESPONSE)) {
+                        formatted += TEXT_LABEL + String.valueOf(response.get(JSON_RESPONSE)) + NEWLINE;
+                    }
+                    
+                    if (response.containsKey(JSON_INTENT)) {
+                        formatted += INTENT_LABEL + String.valueOf(response.get(JSON_INTENT)) + NEWLINE;
+                    }
+                    
+                    if (response.containsKey(JSON_ARTICLE_RELEVANT)) {
+                        formatted += ARTICLE_RELEVANT_LABEL + String.valueOf(response.get(JSON_ARTICLE_RELEVANT)) + NEWLINE;
+                    }
+                    
+                    if (response.containsKey(JSON_SNIPPET_IDENTIFIED)) {
+                        formatted += SNIPPET_IDENTIFIED_LABEL + String.valueOf(response.get(JSON_SNIPPET_IDENTIFIED)) + NEWLINE;
+                    }
+                    
+                    // Extract source information using constants
+                    if (response.containsKey(JSON_SOURCE) && response.get(JSON_SOURCE) instanceof Map<String, Object>) {
+                        Map<String, Object> source = (Map<String, Object>) response.get(JSON_SOURCE);
+                        formatted += SOURCE_INFO_SECTION;
+                        
+                        if (source.containsKey(JSON_SOURCE_RECORD_ID)) {
+                            formatted += RECORD_ID_LABEL + String.valueOf(source.get(JSON_SOURCE_RECORD_ID)) + NEWLINE;
+                        }
+                        
+                        if (source.containsKey(JSON_DATA_SOURCE_OBJECT)) {
+                            formatted += DATA_SOURCE_LABEL + String.valueOf(source.get(JSON_DATA_SOURCE_OBJECT)) + NEWLINE;
+                        }
+                        
+                        if (source.containsKey(JSON_SNIPPET_START) && source.containsKey(JSON_SNIPPET_END)) {
+                            formatted += SNIPPET_RANGE_LABEL;
+                            formatted += String.valueOf(source.get(JSON_SNIPPET_START));
+                            formatted += TO_SEPARATOR;
+                            formatted += String.valueOf(source.get(JSON_SNIPPET_END));
+                            formatted += NEWLINE;
+                        }
+                    }
+                    
+                    formatted += NEWLINE;
+                    responseCount++;
+                }
+            }
+        }
+        return formatted;
     }
     
     // ===========================================

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Secondary_Template_Id__c</fullName>
-    <description>The ID of the secondary prompt template to use for testing. For Service Replies, this is the grounded template that processes the search query from the contextual template.</description>
-    <label>Secondary Template ID</label>
+    <fullName>Contextual_Template_Id__c</fullName>
+    <description>The ID of the contextual prompt template. For Service Replies, this is the contextual template. For Case Summary and Work Summary, this is the single template used.</description>
+    <label>Contextual Template ID</label>
     <length>255</length>
     <required>false</required>
     <trackHistory>true</trackHistory>
