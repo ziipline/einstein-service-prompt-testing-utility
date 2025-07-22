@@ -1,4 +1,4 @@
-# Einstein Prompt Testing Utility
+# Einstein for Service - Prompt Testing Utility
 
 A Salesforce application for testing multiple types of Einstein prompt templates against real organizational data. This utility enables systematic evaluation of AI-powered responses by processing historical data through various template types including Service Replies, Case Summaries, and Work Summaries.
 
