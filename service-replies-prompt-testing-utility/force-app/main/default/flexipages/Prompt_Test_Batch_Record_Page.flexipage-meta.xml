@@ -213,26 +213,6 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
-                <fieldItem>Record.Contextual_Template_Id__c</fieldItem>
-                <identifier>RecordContextual_Template_Id_cField</identifier>
-            </fieldInstance>
-        </itemInstances>
-        <itemInstances>
-            <fieldInstance>
-                <fieldInstanceProperties>
-                    <name>uiBehavior</name>
-                    <value>none</value>
-                </fieldInstanceProperties>
-                <fieldItem>Record.Grounded_Template_Id__c</fieldItem>
-                <identifier>RecordGrounded_Template_Id_cField</identifier>
-            </fieldInstance>
-        </itemInstances>
-        <itemInstances>
-            <fieldInstance>
-                <fieldInstanceProperties>
-                    <name>uiBehavior</name>
-                    <value>none</value>
-                </fieldInstanceProperties>
                 <fieldItem>Record.Retriever_Id__c</fieldItem>
                 <identifier>RecordRetriever_Id_cField</identifier>
                 <visibilityRule>
