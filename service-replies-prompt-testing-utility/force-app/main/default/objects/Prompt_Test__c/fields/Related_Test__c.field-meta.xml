@@ -3,7 +3,6 @@
     <fullName>Related_Test__c</fullName>
     <deleteConstraint>SetNull</deleteConstraint>
     <description>Links Service Reply - Grounded tests to their corresponding Service Reply - Contextual test. Used to establish the relationship between the two phases of Service Reply processing.</description>
-    <externalId>false</externalId>
     <label>Related Test</label>
     <referenceTo>Prompt_Test__c</referenceTo>
     <relationshipLabel>Related Prompt Tests</relationshipLabel>

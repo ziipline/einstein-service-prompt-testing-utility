@@ -209,6 +209,9 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
      */
     public void finish(Database.BatchableContext bc) {
         updateBatchStatus();
+        
+        // Check if quality assessment should be triggered
+        checkAndTriggerQualityAssessment();
     }
     
     // ===========================================
@@ -755,6 +758,46 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 System.debug(ERROR_UPDATING_BATCH_STATUS + e.getMessage());
                 throw e;
             }
+        }
+    }
+    
+    /**
+     * @description Checks if quality assessment should be triggered and launches ziip_PromptMetricsBatch
+     */
+    private void checkAndTriggerQualityAssessment() {
+        try {
+            // Query batches that have quality assessment enabled
+            List<Prompt_Test_Batch__c> batchesToAssess = [
+                SELECT Id, Enable_Quality_Assessment__c,
+                       Faithfulness_Template_Id__c, Relevancy_Template_Id__c, 
+                       Context_Quality_Template_Id__c
+                FROM Prompt_Test_Batch__c 
+                WHERE Id IN :batchIds 
+                AND Enable_Quality_Assessment__c = true
+            ];
+            
+            for (Prompt_Test_Batch__c batch : batchesToAssess) {
+                // Check if at least one quality assessment template is configured
+                Boolean hasQualityTemplates = String.isNotBlank(batch.Faithfulness_Template_Id__c) ||
+                                            String.isNotBlank(batch.Relevancy_Template_Id__c) ||
+                                            String.isNotBlank(batch.Context_Quality_Template_Id__c);
+                
+                if (hasQualityTemplates) {
+                    System.debug('Triggering quality assessment for batch: ' + batch.Id);
+                    
+                    // Launch the quality metrics batch
+                    Database.executeBatch(new ziip_PromptMetricsBatch(
+                        new Set<Id>{batch.Id}
+                    ));
+                } else {
+                    System.debug('Quality assessment enabled for batch ' + batch.Id + 
+                               ' but no assessment templates configured');
+                }
+            }
+            
+        } catch (Exception e) {
+            System.debug('Error triggering quality assessment: ' + e.getMessage());
+            // Don't throw exception to avoid failing the main batch
         }
     }
     

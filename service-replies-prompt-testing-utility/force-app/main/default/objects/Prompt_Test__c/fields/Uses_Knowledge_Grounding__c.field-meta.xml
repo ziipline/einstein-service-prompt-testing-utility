@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Uses_Knowledge_Grounding__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Indicates whether this test was generated from a template that uses knowledge grounding/retrieval (RAG). RAGAS quality assessment will only be performed on tests where this is true.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Check this box if the prompt template for this test retrieves and uses external knowledge sources. RAGAS evaluation is only meaningful for knowledge-grounded responses.</inlineHelpText>
+    <label>Uses Knowledge Grounding</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

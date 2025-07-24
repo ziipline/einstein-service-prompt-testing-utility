@@ -46,6 +46,9 @@ export default class Ziip_promptTestUtility extends LightningElement {
     @api voiceCallsPageSize = 10;
     @api promptTemplatesPageSize = 20;
     @api defaultRetrieverId = '';
+    @api defaultFaithfulnessTemplateId = '';
+    @api defaultRelevancyTemplateId = '';
+    @api defaultContextQualityTemplateId = '';
     
     // Step Management
     showTestTypeSelection = true;
@@ -66,6 +69,16 @@ export default class Ziip_promptTestUtility extends LightningElement {
     selectedSecondaryTemplate = null;
     selectedRetrieverId = '';
     isLoadingTemplates = false;
+    
+    // Quality Assessment Properties
+    enableQualityAssessment = false;
+    faithfulnessTemplateId = '';
+    relevancyTemplateId = '';
+    contextQualityTemplateId = '';
+    
+    // Knowledge Grounding Properties
+    primaryUsesKnowledgeGrounding = false;
+    secondaryUsesKnowledgeGrounding = false;
     
     // Template Filter Properties
     templateNameFilter = '';
@@ -137,6 +150,9 @@ export default class Ziip_promptTestUtility extends LightningElement {
 
     connectedCallback() {
         this.selectedRetrieverId = this.defaultRetrieverId || '';
+        this.faithfulnessTemplateId = this.defaultFaithfulnessTemplateId || '';
+        this.relevancyTemplateId = this.defaultRelevancyTemplateId || '';
+        this.contextQualityTemplateId = this.defaultContextQualityTemplateId || '';
     }
 
     // STEP 1: TEST TYPE SELECTION
@@ -539,6 +555,55 @@ export default class Ziip_promptTestUtility extends LightningElement {
         this.selectedStatus = event.target.value;
     }
 
+    // Quality Assessment Methods
+    handleQualityAssessmentToggle(event) {
+        this.enableQualityAssessment = event.target.checked;
+        
+        // Clear quality template IDs if disabling
+        if (!this.enableQualityAssessment) {
+            this.faithfulnessTemplateId = '';
+            this.relevancyTemplateId = '';
+            this.contextQualityTemplateId = '';
+        }
+    }
+
+    handleFaithfulnessTemplateChange(event) {
+        this.faithfulnessTemplateId = event.target.value;
+    }
+
+    handleRelevancyTemplateChange(event) {
+        this.relevancyTemplateId = event.target.value;
+    }
+
+    handleContextQualityTemplateChange(event) {
+        this.contextQualityTemplateId = event.target.value;
+    }
+
+    // Knowledge Grounding Methods
+    handlePrimaryKnowledgeGroundingChange(event) {
+        this.primaryUsesKnowledgeGrounding = event.target.checked;
+    }
+
+    handleSecondaryKnowledgeGroundingChange(event) {
+        this.secondaryUsesKnowledgeGrounding = event.target.checked;
+    }
+
+    handleQualityTemplateAction(event) {
+        const actionName = event.detail.action.name;
+        const row = event.detail.row;
+        
+        if (actionName === 'select_faithfulness') {
+            this.selectedFaithfulnessTemplate = { ...row };
+            this.showToast('Success', 'Faithfulness template selected: ' + row.Name, 'success');
+        } else if (actionName === 'select_relevancy') {
+            this.selectedRelevancyTemplate = { ...row };
+            this.showToast('Success', 'Relevancy template selected: ' + row.Name, 'success');
+        } else if (actionName === 'select_context_quality') {
+            this.selectedContextQualityTemplate = { ...row };
+            this.showToast('Success', 'Context Quality template selected: ' + row.Name, 'success');
+        }
+    }
+
     // STEP 4: CREATE TEST BATCH
 
     handleCreateAdvancedTestBatch() {
@@ -547,15 +612,55 @@ export default class Ziip_promptTestUtility extends LightningElement {
             return;
         }
 
+        // Enhanced validation and debugging
+        console.log('=== JS DEBUG: handleCreateAdvancedTestBatch START ===');
+        console.log('selectedTestType:', this.selectedTestType);
+        console.log('selectedRecordIds:', this.selectedRecordIds);
+        console.log('selectedPrimaryTemplate:', this.selectedPrimaryTemplate);
+        console.log('selectedSecondaryTemplate:', this.selectedSecondaryTemplate);
+        console.log('selectedRetrieverId:', this.selectedRetrieverId);
+        console.log('enableQualityAssessment:', this.enableQualityAssessment);
+        console.log('faithfulnessTemplateId:', this.faithfulnessTemplateId);
+        console.log('relevancyTemplateId:', this.relevancyTemplateId);
+        console.log('contextQualityTemplateId:', this.contextQualityTemplateId);
+
+        // Validate required fields
+        if (!this.selectedPrimaryTemplate || !this.selectedPrimaryTemplate.Id) {
+            this.showToast('Error', 'Primary template is required but not selected or missing ID.', 'error');
+            return;
+        }
+
+        if (this.selectedTestType === 'Service Replies' && (!this.selectedSecondaryTemplate || !this.selectedSecondaryTemplate.Id)) {
+            this.showToast('Error', 'Secondary template is required for Service Replies but not selected or missing ID.', 'error');
+            return;
+        }
+
         this.showToast('Processing', 'Creating test batch...', 'info');
 
-        createAdvancedTestBatch({ 
+        const params = {
             testType: this.selectedTestType,
             recordIds: this.selectedRecordIds,
             primaryTemplateId: this.selectedPrimaryTemplate.Id,
-            secondaryTemplateId: this.selectedSecondaryTemplate?.Id,
-            retrieverId: this.selectedRetrieverId
-        })
+            secondaryTemplateId: this.selectedSecondaryTemplate?.Id || null,
+            retrieverId: this.selectedRetrieverId || null,
+            enableQualityAssessment: this.enableQualityAssessment,
+            faithfulnessTemplateId: this.faithfulnessTemplateId || null,
+            relevancyTemplateId: this.relevancyTemplateId || null,
+            contextQualityTemplateId: this.contextQualityTemplateId || null,
+            primaryUsesKnowledgeGrounding: this.primaryUsesKnowledgeGrounding,
+            secondaryUsesKnowledgeGrounding: this.secondaryUsesKnowledgeGrounding
+        };
+
+        console.log('=== JS DEBUG: UI Knowledge Grounding Values ===');
+        console.log('this.primaryUsesKnowledgeGrounding:', this.primaryUsesKnowledgeGrounding);
+        console.log('this.secondaryUsesKnowledgeGrounding:', this.secondaryUsesKnowledgeGrounding);
+        console.log('params.primaryUsesKnowledgeGrounding:', params.primaryUsesKnowledgeGrounding);
+        console.log('params.secondaryUsesKnowledgeGrounding:', params.secondaryUsesKnowledgeGrounding);
+
+        console.log('=== JS DEBUG: Calling Apex with params ===');
+        console.log('params:', JSON.stringify(params, null, 2));
+
+        createAdvancedTestBatch(params)
         .then(result => {
             console.log('Test batch creation result:', result);
             
@@ -657,6 +762,10 @@ export default class Ziip_promptTestUtility extends LightningElement {
 
     get showRetrieverConfig() {
         return this.selectedTestType === 'Service Replies';
+    }
+
+    get showKnowledgeGroundingConfig() {
+        return this.selectedPrimaryTemplate || this.selectedSecondaryTemplate;
     }
 
     get continueToRecordsLabel() {
@@ -906,6 +1015,44 @@ export default class Ziip_promptTestUtility extends LightningElement {
         }
         
         return columns;
+    }
+
+    // Quality Assessment computed properties
+    get qualityAssessmentStatusLabel() {
+        if (!this.enableQualityAssessment) {
+            return 'Disabled';
+        }
+        
+        const hasTemplates = this.faithfulnessTemplateId || 
+                           this.relevancyTemplateId || 
+                           this.contextQualityTemplateId;
+        
+        if (!hasTemplates) {
+            return 'No Templates Configured';
+        }
+        
+        let configuredCount = 0;
+        if (this.faithfulnessTemplateId) configuredCount++;
+        if (this.relevancyTemplateId) configuredCount++;
+        if (this.contextQualityTemplateId) configuredCount++;
+        
+        return `${configuredCount} Metric${configuredCount > 1 ? 's' : ''} Configured`;
+    }
+
+    get qualityAssessmentStatusVariant() {
+        if (!this.enableQualityAssessment) {
+            return 'inverse';
+        }
+        
+        const hasTemplates = this.faithfulnessTemplateId || 
+                           this.relevancyTemplateId || 
+                           this.contextQualityTemplateId;
+        
+        if (!hasTemplates) {
+            return 'warning';
+        }
+        
+        return 'success';
     }
 
     // UTILITY METHODS

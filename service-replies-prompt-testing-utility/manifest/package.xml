@@ -2,6 +2,7 @@
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <!-- Apex Classes -->
     <types>
+        <members>ziip_PromptMetricsBatch</members>
         <members>ziip_PromptTestBatch</members>
         <members>ziip_PromptTestUtil_Controller</members>
         <name>ApexClass</name>
@@ -15,8 +16,14 @@
     
     <!-- Custom Fields -->
     <types>
+        <members>Prompt_Test_Batch__c.Context_Quality_Template_Id__c</members>
+        <members>Prompt_Test_Batch__c.Contextual_Template_Id__c</members>
+        <members>Prompt_Test_Batch__c.Enable_Quality_Assessment__c</members>
         <members>Prompt_Test_Batch__c.End_Datetime__c</members>
+        <members>Prompt_Test_Batch__c.Faithfulness_Template_Id__c</members>
+        <members>Prompt_Test_Batch__c.Grounded_Template_Id__c</members>
         <members>Prompt_Test_Batch__c.Primary_Template_Id__c</members>
+        <members>Prompt_Test_Batch__c.Relevancy_Template_Id__c</members>
         <members>Prompt_Test_Batch__c.Retriever_Id__c</members>
         <members>Prompt_Test_Batch__c.Secondary_Template_Id__c</members>
         <members>Prompt_Test_Batch__c.Start_Datetime__c</members>
@@ -28,6 +35,14 @@
         <members>Prompt_Test__c.Primary_Resolved_Prompt__c</members>
         <members>Prompt_Test__c.Primary_Result__c</members>
         <members>Prompt_Test__c.Prompt_Test_Batch__c</members>
+        <members>Prompt_Test__c.Quality_Assessment_Details__c</members>
+        <members>Prompt_Test__c.Quality_Metrics_Status__c</members>
+        <members>Prompt_Test__c.RAGAS_Context_Quality_Analysis__c</members>
+        <members>Prompt_Test__c.RAGAS_Context_Quality_Score__c</members>
+        <members>Prompt_Test__c.RAGAS_Faithfulness_Analysis__c</members>
+        <members>Prompt_Test__c.RAGAS_Faithfulness_Score__c</members>
+        <members>Prompt_Test__c.RAGAS_Relevancy_Analysis__c</members>
+        <members>Prompt_Test__c.RAGAS_Relevancy_Score__c</members>
         <members>Prompt_Test__c.Raw_Result__c</members>
         <members>Prompt_Test__c.Related_Test__c</members>
         <members>Prompt_Test__c.Request_ID__c</members>
@@ -36,7 +51,10 @@
         <members>Prompt_Test__c.Secondary_Resolved_Prompt__c</members>
         <members>Prompt_Test__c.Secondary_Result__c</members>
         <members>Prompt_Test__c.Status__c</members>
+        <members>Prompt_Test__c.Template_Id__c</members>
+        <members>Prompt_Test__c.Template_Type__c</members>
         <members>Prompt_Test__c.Transcript__c</members>
+        <members>Prompt_Test__c.Uses_Knowledge_Grounding__c</members>
         <members>Prompt_Test__c.Utterance_Sequence__c</members>
         <members>Prompt_Test__c.Voice_Call__c</members>
         <name>CustomField</name>
@@ -88,6 +106,14 @@
     <types>
         <members>Prompt_Test_Batch__c.Run_Tests</members>
         <name>QuickAction</name>
+    </types>
+    
+    <!-- GenAI Prompt Templates -->
+    <types>
+        <members>RAGAS_Context_Quality_Evaluator</members>
+        <members>RAGAS_Faithfulness_Evaluator</members>
+        <members>RAGAS_Relevancy_Evaluator</members>
+        <name>GenAiPromptTemplate</name>
     </types>
     
     <!-- Lightning Web Components -->

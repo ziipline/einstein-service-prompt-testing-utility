@@ -4,7 +4,26 @@
     <hasActivationRequired>false</hasActivationRequired>
     <label>Ziip Prompt Testing Admin</label>
     
-    <!-- Field Permissions for Prompt_Test__c (Edit Access) -->
+    <!-- Apex Class Permissions -->
+    <classAccesses>
+        <apexClass>ziip_PromptTestUtil_Controller</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ziip_PromptTestBatch</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>ziip_PromptMetricsBatch</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    
+    <!-- Field Permissions for Prompt_Test__c (Admin has edit access where appropriate) -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test__c.Case__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>Prompt_Test__c.Customer_Utterance__c</field>
@@ -16,8 +35,63 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Primary_Resolved_Prompt__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Primary_Result__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Quality_Assessment_Details__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
         <editable>true</editable>
-        <field>Prompt_Test__c.Prompt_Test_Batch__c</field>
+        <field>Prompt_Test__c.Quality_Metrics_Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.RAGAS_Context_Quality_Analysis__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.RAGAS_Context_Quality_Score__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.RAGAS_Faithfulness_Analysis__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.RAGAS_Faithfulness_Score__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.RAGAS_Relevancy_Analysis__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.RAGAS_Relevancy_Score__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Raw_Result__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test__c.Related_Test__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -26,8 +100,23 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Resolved_Prompt__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
         <editable>true</editable>
         <field>Prompt_Test__c.Result__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Secondary_Resolved_Prompt__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Secondary_Result__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -37,7 +126,22 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>Prompt_Test__c.Template_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test__c.Template_Type__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>Prompt_Test__c.Transcript__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test__c.Uses_Knowledge_Grounding__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -47,16 +151,26 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>Prompt_Test__c.Primary_Resolved_Prompt__c</field>
+        <field>Prompt_Test__c.Voice_Call__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    
+    <!-- Field Permissions for Prompt_Test_Batch__c (Admin has full edit access) -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test_Batch__c.Context_Quality_Template_Id__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>Prompt_Test__c.Secondary_Resolved_Prompt__c</field>
+        <field>Prompt_Test_Batch__c.Contextual_Template_Id__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    
-    <!-- Field Permissions for Prompt_Test_Batch__c (Edit Access) -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test_Batch__c.Enable_Quality_Assessment__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
         <field>Prompt_Test_Batch__c.End_Datetime__c</field>
@@ -64,10 +178,49 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>Prompt_Test_Batch__c.Faithfulness_Template_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test_Batch__c.Grounded_Template_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test_Batch__c.Primary_Template_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test_Batch__c.Relevancy_Template_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test_Batch__c.Retriever_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test_Batch__c.Secondary_Template_Id__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>Prompt_Test_Batch__c.Start_Datetime__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    <!-- Note: Status__c is a required field and cannot be secured via permission sets -->
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test_Batch__c.Status__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>Prompt_Test_Batch__c.Test_Type__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     
     <!-- Object Permissions (Full CRUD) -->
     <objectPermissions>
@@ -86,6 +239,24 @@
         <allowRead>true</allowRead>
         <modifyAllRecords>true</modifyAllRecords>
         <object>Prompt_Test_Batch__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>MessagingEndUser</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>MessagingSession</object>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
     

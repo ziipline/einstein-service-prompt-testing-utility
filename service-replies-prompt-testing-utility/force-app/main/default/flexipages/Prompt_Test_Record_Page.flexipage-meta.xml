@@ -48,6 +48,16 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
+                <fieldItem>Record.Request_ID__c</fieldItem>
+                <identifier>RecordRequest_ID_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
                 <fieldItem>Record.Messaging_Session__c</fieldItem>
                 <identifier>RecordMessaging_Session_cField</identifier>
             </fieldInstance>
@@ -94,16 +104,6 @@
                 </fieldInstanceProperties>
                 <fieldItem>Record.Customer_Utterance__c</fieldItem>
                 <identifier>RecordCustomer_Utterance_cField</identifier>
-            </fieldInstance>
-        </itemInstances>
-        <itemInstances>
-            <fieldInstance>
-                <fieldInstanceProperties>
-                    <name>uiBehavior</name>
-                    <value>none</value>
-                </fieldInstanceProperties>
-                <fieldItem>Record.Request_ID__c</fieldItem>
-                <identifier>RecordRequest_ID_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <name>Facet-a7bd878d-01f4-47d8-bb5c-19efead78800</name>
@@ -385,6 +385,40 @@
     </flexiPageRegions>
     <flexiPageRegions>
         <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Related_Test__c</fieldItem>
+                <identifier>RecordRelated_Test_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldItem>Record.Related_Test__r.Result__c</fieldItem>
+                <identifier>RecordRelated_Test_rResult_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <name>Facet-55dd0312-3efc-4165-b07d-83b2bdbb9ab9</name>
+        <type>Facet</type>
+    </flexiPageRegions>
+    <flexiPageRegions>
+        <itemInstances>
+            <componentInstance>
+                <componentInstanceProperties>
+                    <name>body</name>
+                    <value>Facet-55dd0312-3efc-4165-b07d-83b2bdbb9ab9</value>
+                </componentInstanceProperties>
+                <componentName>flexipage:column</componentName>
+                <identifier>flexipage_column4</identifier>
+            </componentInstance>
+        </itemInstances>
+        <name>Facet-414b95b9-74da-4d4a-a993-fee7448c49c0</name>
+        <type>Facet</type>
+    </flexiPageRegions>
+    <flexiPageRegions>
+        <itemInstances>
             <componentInstance>
                 <componentInstanceProperties>
                     <name>columns</name>
@@ -418,6 +452,24 @@
                 </componentInstanceProperties>
                 <componentName>flexipage:fieldSection</componentName>
                 <identifier>flexipage_fieldSection4</identifier>
+            </componentInstance>
+        </itemInstances>
+        <itemInstances>
+            <componentInstance>
+                <componentInstanceProperties>
+                    <name>columns</name>
+                    <value>Facet-414b95b9-74da-4d4a-a993-fee7448c49c0</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
+                    <name>horizontalAlignment</name>
+                    <value>false</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
+                    <name>label</name>
+                    <value>Related Test</value>
+                </componentInstanceProperties>
+                <componentName>flexipage:fieldSection</componentName>
+                <identifier>flexipage_fieldSection6</identifier>
             </componentInstance>
         </itemInstances>
         <mode>Replace</mode>

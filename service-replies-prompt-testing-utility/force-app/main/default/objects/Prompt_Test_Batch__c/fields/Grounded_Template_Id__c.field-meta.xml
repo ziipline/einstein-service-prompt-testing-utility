@@ -2,6 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Grounded_Template_Id__c</fullName>
     <description>The ID of the grounded prompt template for Service Replies. This template processes the search query from the contextual template and provides knowledge-based responses.</description>
+    <externalId>false</externalId>
     <label>Grounded Template ID</label>
     <length>255</length>
     <required>false</required>

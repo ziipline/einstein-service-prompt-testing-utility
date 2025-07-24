@@ -2,7 +2,6 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>Template_Type__c</fullName>
     <description>The type of prompt template that was executed for this test record. Distinguishes between different template categories and processing flows.</description>
-    <externalId>false</externalId>
     <label>Template Type</label>
     <required>false</required>
     <trackTrending>false</trackTrending>

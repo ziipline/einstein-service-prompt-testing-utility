@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>RAGAS_Context_Quality_Score__c</fullName>
+    <description>RAGAS context quality score (0-100) indicating the precision and recall of retrieved context</description>
+    <externalId>false</externalId>
+    <label>RAGAS Context Quality Score</label>
+    <precision>5</precision>
+    <required>false</required>
+    <scale>2</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>
