@@ -13,11 +13,11 @@ This overview shows how Service Replies for Chat operates in a live environment,
 order to test the underlying prompts that are used - to aid with development of the prompts that are used 
 
   <div>
-    <a href="https://www.loom.com/share/0c525ad41cdc42d09e9d591f1bf67034">
-      <p>Prompt Testing Utility | Overview of Functionality - Watch Video</p>
+    <a href="https://www.loom.com/share/ce7d2ec9bfa34adc9eb7e3bda1e04980">
+      <p>Bulk Prompt Testing and Evaluation Utility - Watch Video</p>
     </a>
-    <a href="https://www.loom.com/share/0c525ad41cdc42d09e9d591f1bf67034">
-      <img style="max-width:600px;" src="https://cdn.loom.com/sessions/thumbnails/0c525ad41cdc42d09e9d591f1bf67034-dbe20b8cea669196-full-play.gif">
+    <a href="https://www.loom.com/share/ce7d2ec9bfa34adc9eb7e3bda1e04980">
+      <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/ce7d2ec9bfa34adc9eb7e3bda1e04980-26b2a4b7fe12d80c-full-play.gif">
     </a>
   </div>
 
