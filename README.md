@@ -12,12 +12,12 @@ A comprehensive Salesforce application for testing multiple types of Einstein pr
 This overview shows how Service Replies for Chat operates in a live environment, followed by how this testing utility can then be used to preview Service Replies in
 order to test the underlying prompts that are used - to aid with development of the prompts that are used 
 
-  <div>
+<div>
     <a href="https://www.loom.com/share/ce7d2ec9bfa34adc9eb7e3bda1e04980">
       <p>Bulk Prompt Testing and Evaluation Utility - Watch Video</p>
     </a>
     <a href="https://www.loom.com/share/ce7d2ec9bfa34adc9eb7e3bda1e04980">
-      <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/ce7d2ec9bfa34adc9eb7e3bda1e04980-26b2a4b7fe12d80c-full-play.gif">
+      <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/ce7d2ec9bfa34adc9eb7e3bda1e04980-cd1953a1e1a53d1f-full.jpg">
     </a>
   </div>
 
