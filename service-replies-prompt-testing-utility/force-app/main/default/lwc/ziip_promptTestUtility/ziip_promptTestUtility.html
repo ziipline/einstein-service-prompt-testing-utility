@@ -137,6 +137,69 @@
                         </div>
                     </div>
 
+                    <!-- Knowledge Grounding Configuration -->
+                    <template if:true={showKnowledgeGroundingConfig}>
+                        <div class="slds-var-m-bottom_medium">
+                            <div class="slds-card">
+                                <div class="slds-card__header">
+                                    <h3 class="slds-text-heading_small">
+                                        <lightning-icon icon-name="utility:knowledge_base" size="small" class="slds-var-m-right_x-small"></lightning-icon>
+                                        Knowledge Grounding Configuration
+                                    </h3>
+                                </div>
+                                <div class="slds-card__body slds-card__body_inner">
+                                    <div class="slds-grid slds-gutters">
+                                        <template if:true={selectedPrimaryTemplate}>
+                                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                                <div class="slds-box">
+                                                    <h4 class="slds-text-heading_small slds-var-m-bottom_small">{primaryTemplateLabel}</h4>
+                                                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_small">
+                                                        {selectedPrimaryTemplate.Name}
+                                                    </p>
+                                                    <lightning-input
+                                                        type="toggle"
+                                                        label="Uses Knowledge Grounding"
+                                                        checked={primaryUsesKnowledgeGrounding}
+                                                        message-when-active="Template uses knowledge retrieval"
+                                                        message-when-inactive="Template does not use knowledge retrieval"
+                                                        onchange={handlePrimaryKnowledgeGroundingChange}>
+                                                    </lightning-input>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <template if:true={selectedSecondaryTemplate}>
+                                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2">
+                                                <div class="slds-box">
+                                                    <h4 class="slds-text-heading_small slds-var-m-bottom_small">{secondaryTemplateLabel}</h4>
+                                                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_small">
+                                                        {selectedSecondaryTemplate.Name}
+                                                    </p>
+                                                    <lightning-input
+                                                        type="toggle"
+                                                        label="Uses Knowledge Grounding"
+                                                        checked={secondaryUsesKnowledgeGrounding}
+                                                        message-when-active="Template uses knowledge retrieval"
+                                                        message-when-inactive="Template does not use knowledge retrieval"
+                                                        onchange={handleSecondaryKnowledgeGroundingChange}>
+                                                    </lightning-input>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <div class="slds-var-m-top_medium">
+                                        <div class="slds-box slds-theme_info">
+                                            <p class="slds-text-body_small">
+                                                <lightning-icon icon-name="utility:info" size="xx-small" class="slds-var-m-right_xx-small"></lightning-icon>
+                                                Knowledge grounding determines whether RAGAS quality assessment will be performed. 
+                                                Enable this for templates that use Einstein Search or knowledge retrieval features.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
                     <!-- Retriever Configuration (for Service Replies only) -->
                     <template if:true={showRetrieverConfig}>
                         <div class="slds-var-m-bottom_medium">
@@ -168,6 +231,129 @@
                             </div>
                         </div>
                     </template>
+
+                    <!-- Quality Assessment Configuration -->
+                    <div class="slds-var-m-bottom_medium">
+                        <div class="slds-card">
+                            <div class="slds-card__header">
+                                <h3 class="slds-text-heading_small">
+                                    <lightning-icon icon-name="standard:metrics" size="small" class="slds-var-m-right_x-small"></lightning-icon>
+                                    RAGAS Quality Assessment
+                                </h3>
+                            </div>
+                            <div class="slds-card__body slds-card__body_inner">
+                                <!-- Quality Assessment Toggle -->
+                                <div class="slds-var-m-bottom_medium">
+                                    <lightning-input
+                                        type="toggle"
+                                        label="Enable Quality Assessment"
+                                        checked={enableQualityAssessment}
+                                        message-when-active="Quality metrics will be calculated after test completion"
+                                        message-when-inactive="Quality metrics will not be calculated"
+                                        onchange={handleQualityAssessmentToggle}>
+                                    </lightning-input>
+                                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">
+                                        Enable RAGAS (Retrieval-Augmented Generation Assessment) quality metrics to evaluate response faithfulness, relevancy, and context quality.
+                                    </p>
+                                </div>
+
+                                <!-- Quality Assessment Template Configuration -->
+                                <template if:true={enableQualityAssessment}>
+                                    <div class="slds-grid slds-gutters slds-wrap">
+                                        <!-- Faithfulness Assessment -->
+                                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                            <div class="slds-box quality-metric-box">
+                                                <div class="slds-var-m-bottom_small">
+                                                    <h4 class="slds-text-heading_small">
+                                                        <lightning-icon icon-name="utility:shield" size="xx-small" class="slds-var-m-right_xx-small"></lightning-icon>
+                                                        Faithfulness
+                                                    </h4>
+                                                    <p class="slds-text-body_small slds-text-color_weak">
+                                                        Anti-hallucination scoring to ensure responses are grounded in source context
+                                                    </p>
+                                                </div>
+                                                <lightning-input
+                                                    type="text"
+                                                    label="Faithfulness Template ID"
+                                                    value={faithfulnessTemplateId}
+                                                    placeholder="Enter template ID"
+                                                    field-level-help="Default configured by admin. Override if needed."
+                                                    onchange={handleFaithfulnessTemplateChange}>
+                                                </lightning-input>
+                                            </div>
+                                        </div>
+
+                                        <!-- Relevancy Assessment -->
+                                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                            <div class="slds-box quality-metric-box">
+                                                <div class="slds-var-m-bottom_small">
+                                                    <h4 class="slds-text-heading_small">
+                                                        <lightning-icon icon-name="utility:target" size="xx-small" class="slds-var-m-right_xx-small"></lightning-icon>
+                                                        Relevancy
+                                                    </h4>
+                                                    <p class="slds-text-body_small slds-text-color_weak">
+                                                        Measures how well responses address user questions and needs
+                                                    </p>
+                                                </div>
+                                                <lightning-input
+                                                    type="text"
+                                                    label="Relevancy Template ID"
+                                                    value={relevancyTemplateId}
+                                                    placeholder="Enter template ID"
+                                                    field-level-help="Default configured by admin. Override if needed."
+                                                    onchange={handleRelevancyTemplateChange}>
+                                                </lightning-input>
+                                            </div>
+                                        </div>
+
+                                        <!-- Context Quality Assessment -->
+                                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                                            <div class="slds-box quality-metric-box">
+                                                <div class="slds-var-m-bottom_small">
+                                                    <h4 class="slds-text-heading_small">
+                                                        <lightning-icon icon-name="utility:knowledge_base" size="xx-small" class="slds-var-m-right_xx-small"></lightning-icon>
+                                                        Context Quality
+                                                    </h4>
+                                                    <p class="slds-text-body_small slds-text-color_weak">
+                                                        Evaluates precision and recall of retrieved contextual information
+                                                    </p>
+                                                </div>
+                                                <lightning-input
+                                                    type="text"
+                                                    label="Context Quality Template ID"
+                                                    value={contextQualityTemplateId}
+                                                    placeholder="Enter template ID"
+                                                    field-level-help="Default configured by admin. Override if needed."
+                                                    onchange={handleContextQualityTemplateChange}>
+                                                </lightning-input>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Quality Assessment Status -->
+                                    <div class="slds-var-m-top_medium">
+                                        <div class="slds-box slds-theme_info">
+                                            <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                                <div class="slds-col">
+                                                    <p class="slds-text-body_small">
+                                                        <lightning-icon icon-name="utility:info" size="xx-small" class="slds-var-m-right_xx-small"></lightning-icon>
+                                                        Quality assessment will run automatically after test completion.
+                                                        Configure at least one template ID above to enable specific metrics.
+                                                    </p>
+                                                </div>
+                                                <div class="slds-col slds-no-flex">
+                                                    <lightning-badge 
+                                                        label={qualityAssessmentStatusLabel} 
+                                                        variant={qualityAssessmentStatusVariant}>
+                                                    </lightning-badge>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Template Filters -->
                     <div class="slds-var-m-bottom_medium">

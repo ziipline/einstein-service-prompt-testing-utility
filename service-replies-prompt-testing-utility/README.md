@@ -45,6 +45,7 @@ The Einstein Prompt Testing Utility streamlines the process of evaluating multip
 - ✅ **Contextual Analysis**: Extract search queries and analyze conversation context (Service Replies)
 - ✅ **Grounded Responses**: Generate knowledge-grounded responses when relevant (Service Replies)
 - ✅ **Customer Utterance Parsing**: Automatically identify and process individual customer messages
+- ✅ **Quality Metrics**: RAGAS-based evaluation for faithfulness, relevancy, and context quality assessment with automated batch processing
 - ✅ **Progress Tracking**: Monitor batch processing status and detailed results
 
 ### Technical Features
@@ -190,6 +191,107 @@ Configure the appropriate Einstein Prompt Templates based on your intended test 
 For grounded Service Reply templates, update the RetriverId attribute when adding the 
 ziip__PromptTestingUtility to an App page in App Builder
 
+## 📊 RAGAS Quality Metrics
+
+The utility includes comprehensive RAGAS (Retrieval-Augmented Generation Assessment) quality evaluation to score prompt outputs and ensure they are not hallucinating, remain faithful to grounding information, and respond in a context-aware manner.
+
+### Quality Assessment Features
+
+#### **Three Core Metrics**
+1. **🎯 Faithfulness**: Measures how well the generated response adheres to the provided context/grounding information
+2. **🔍 Relevancy**: Evaluates how relevant the response is to the user's question or input
+3. **📋 Context Quality**: Assesses the quality and appropriateness of the context provided for response generation
+
+#### **Automated Quality Processing**
+- **Batch Integration**: Quality assessment automatically runs after primary prompt testing completes
+- **Template-Based Evaluation**: Uses dedicated Einstein Prompt Templates for each metric type
+- **Structured Analysis**: Provides both numerical scores (0-1) and detailed textual analysis
+- **Status Tracking**: Monitor quality assessment progress separately from primary testing
+
+### Quality Assessment Configuration
+
+#### **Enable Quality Assessment**
+1. **Batch Configuration**: Enable the "Enable Quality Assessment" checkbox on Prompt Test Batch records
+2. **Template Selection**: Configure quality assessment templates:
+   - **Faithfulness Template**: Template ID for faithfulness evaluation
+   - **Relevancy Template**: Template ID for relevancy evaluation  
+   - **Context Quality Template**: Template ID for context quality assessment
+
+#### **RAGAS Prompt Templates**
+The utility includes pre-built RAGAS evaluation templates:
+
+```
+├── GenAI Prompt Templates
+│   ├── RAGAS_Faithfulness_Evaluator    # Evaluates response faithfulness to context
+│   ├── RAGAS_Relevancy_Evaluator       # Measures response relevancy to query
+│   └── RAGAS_Context_Quality_Evaluator # Assesses context appropriateness
+```
+
+**Template Configuration Requirements:**
+- Each template should accept standard inputs (question, answer, context)
+- Expected output format: `{"score": 0.85, "analysis": "Detailed explanation..."}`
+- Score range: 0.0 (poor) to 1.0 (excellent)
+
+#### **Quality Assessment Workflow**
+1. **Primary Testing**: Complete normal prompt testing batch
+2. **Quality Trigger**: System automatically initiates quality assessment if enabled
+3. **Metric Evaluation**: Each prompt test result is evaluated against all three metrics
+4. **Score Storage**: Results stored in dedicated RAGAS score and analysis fields
+5. **Status Updates**: Quality metrics status tracked independently
+
+### Understanding Quality Results
+
+#### **Faithfulness Scoring**
+- **Score Range**: 0.0 - 1.0 (higher is better)
+- **Interpretation**:
+  - **0.9-1.0**: Highly faithful to provided context
+  - **0.7-0.8**: Generally faithful with minor deviations
+  - **0.5-0.6**: Moderate faithfulness, some hallucination risk
+  - **<0.5**: Poor faithfulness, significant hallucination concerns
+
+#### **Relevancy Scoring**  
+- **Score Range**: 0.0 - 1.0 (higher is better)
+- **Interpretation**:
+  - **0.9-1.0**: Highly relevant to user query
+  - **0.7-0.8**: Generally relevant with good context understanding
+  - **0.5-0.6**: Moderately relevant, some off-topic elements
+  - **<0.5**: Poor relevancy, response doesn't address query well
+
+#### **Context Quality Scoring**
+- **Score Range**: 0.0 - 1.0 (higher is better)  
+- **Interpretation**:
+  - **0.9-1.0**: Excellent context, highly appropriate for response generation
+  - **0.7-0.8**: Good context quality with minor gaps
+  - **0.5-0.6**: Adequate context but could be improved
+  - **<0.5**: Poor context quality, insufficient for reliable response generation
+
+#### **Quality Assessment Fields**
+- **RAGAS_Faithfulness_Score__c**: Numerical faithfulness score (0-1)
+- **RAGAS_Faithfulness_Analysis__c**: Detailed textual analysis of faithfulness
+- **RAGAS_Relevancy_Score__c**: Numerical relevancy score (0-1)
+- **RAGAS_Relevancy_Analysis__c**: Detailed textual analysis of relevancy
+- **RAGAS_Context_Quality_Score__c**: Numerical context quality score (0-1)
+- **RAGAS_Context_Quality_Analysis__c**: Detailed textual analysis of context quality
+- **Quality_Metrics_Status__c**: Processing status (Pending, In Progress, Completed, Failed)
+- **Quality_Assessment_Details__c**: Overall quality assessment summary
+
+### Quality Metrics Best Practices
+
+#### **Template Optimization**
+- Monitor faithfulness scores to identify hallucination patterns
+- Use relevancy scores to optimize response targeting
+- Leverage context quality scores to improve grounding sources
+
+#### **Batch Analysis**
+- Compare quality metrics across different template versions
+- Identify optimal template configurations using aggregate scores
+- Track quality trends over time and across different data sets
+
+#### **Performance Monitoring**
+- Set quality score thresholds for production templates
+- Use automated alerts for templates with declining quality scores
+- Regular quality audits to maintain response reliability
+
 ## 📖 Usage Guide
 
 ### 1. Accessing the Application
@@ -203,13 +305,15 @@ Navigate to the **Prompt Testing Utility** tab in your Salesforce org to access 
    - **Service Replies**: Requires both Primary (Contextual) and Secondary (Grounded) templates
    - **Case Summary**: Requires only Primary template
    - **Work Summary**: Requires only Primary template
+3. **Quality Assessment** (Optional): Enable quality assessment and configure RAGAS evaluation templates
 
 ### 3. Template Selection
 
 1. **Browse Templates**: View paginated list of available Einstein Prompt Templates
 2. **Filter Templates**: Use search and type filters to find relevant templates
 3. **Select Templates**: Choose appropriate templates for your test type
-4. **Continue**: Proceed to data selection
+4. **Quality Templates**: If quality assessment enabled, select RAGAS evaluation templates
+5. **Continue**: Proceed to data selection
 
 ### 4. Data Selection
 

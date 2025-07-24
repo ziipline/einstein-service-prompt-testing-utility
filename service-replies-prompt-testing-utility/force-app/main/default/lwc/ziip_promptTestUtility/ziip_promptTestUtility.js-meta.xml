@@ -12,6 +12,9 @@
             <property name="messagingSessionsPageSize" type="Integer" default="10" label="Messaging Sessions Page Size" description="Number of messaging sessions to display per page in session selection"/>
             <property name="promptTemplatesPageSize" type="Integer" default="20" label="Prompt Templates Page Size" description="Number of Einstein AI prompt templates to display per page in template selection"/>
             <property name="defaultRetrieverId" type="String" label="Default Retriever ID" description="Default Einstein retriever ID for grounded template processing (required for component to function)"/>
+            <property name="defaultFaithfulnessTemplateId" type="String" label="Default Faithfulness Template ID" description="Default Einstein prompt template ID for RAGAS faithfulness assessment"/>
+            <property name="defaultRelevancyTemplateId" type="String" label="Default Relevancy Template ID" description="Default Einstein prompt template ID for RAGAS relevancy assessment"/>
+            <property name="defaultContextQualityTemplateId" type="String" label="Default Context Quality Template ID" description="Default Einstein prompt template ID for RAGAS context quality assessment"/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

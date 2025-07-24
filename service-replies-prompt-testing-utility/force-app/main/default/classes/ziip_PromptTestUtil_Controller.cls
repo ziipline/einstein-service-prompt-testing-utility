@@ -624,27 +624,62 @@ public with sharing class ziip_PromptTestUtil_Controller {
         List<String> recordIds,
         String primaryTemplateId,
         String secondaryTemplateId,
-        String retrieverId
+        String retrieverId,
+        Boolean enableQualityAssessment,
+        String faithfulnessTemplateId,
+        String relevancyTemplateId,
+        String contextQualityTemplateId,
+        Boolean primaryUsesKnowledgeGrounding,
+        Boolean secondaryUsesKnowledgeGrounding
     ) {
-        // Validate test type
-        if (String.isBlank(testType)) {
-            throw new IllegalArgumentException('Test type is required');
+        try {
+            System.debug('=== createAdvancedTestBatch START ===');
+            System.debug('testType: ' + testType);
+            System.debug('recordIds: ' + recordIds);
+            System.debug('primaryTemplateId: ' + primaryTemplateId);
+            System.debug('secondaryTemplateId: ' + secondaryTemplateId);
+            System.debug('retrieverId: ' + retrieverId);
+            System.debug('enableQualityAssessment: ' + enableQualityAssessment);
+            System.debug('faithfulnessTemplateId: ' + faithfulnessTemplateId);
+            System.debug('relevancyTemplateId: ' + relevancyTemplateId);
+            System.debug('contextQualityTemplateId: ' + contextQualityTemplateId);
+            System.debug('primaryUsesKnowledgeGrounding: ' + primaryUsesKnowledgeGrounding);
+            System.debug('secondaryUsesKnowledgeGrounding: ' + secondaryUsesKnowledgeGrounding);
+            
+            // Validate test type
+            if (String.isBlank(testType)) {
+                throw new IllegalArgumentException('Test type is required');
+            }
+            
+            if (recordIds == null || recordIds.isEmpty()) {
+                throw new IllegalArgumentException('At least one record ID is required');
+            }
+            
+            if (String.isBlank(primaryTemplateId)) {
+                throw new IllegalArgumentException('Primary template ID is required');
+            }
+            
+            // Validate templates based on test type
+            if (testType == 'Service Replies' && String.isBlank(secondaryTemplateId)) {
+                throw new IllegalArgumentException('Secondary template ID is required for Service Replies');
+            }
+            
+            Map<String, Object> result = createTestBatchForType(testType, recordIds, primaryTemplateId, secondaryTemplateId, retrieverId, enableQualityAssessment, faithfulnessTemplateId, relevancyTemplateId, contextQualityTemplateId, primaryUsesKnowledgeGrounding, secondaryUsesKnowledgeGrounding);
+            
+            System.debug('=== createAdvancedTestBatch SUCCESS ===');
+            System.debug('Result: ' + result);
+            
+            return result;
+            
+        } catch (Exception e) {
+            System.debug('=== createAdvancedTestBatch ERROR ===');
+            System.debug('Exception Type: ' + e.getTypeName());
+            System.debug('Exception Message: ' + e.getMessage());
+            System.debug('Exception Stack Trace: ' + e.getStackTraceString());
+            
+            // Re-throw with more detailed message
+            throw new AuraHandledException('Failed to create test batch: ' + e.getMessage() + ' (Type: ' + e.getTypeName() + ')');
         }
-        
-        if (recordIds == null || recordIds.isEmpty()) {
-            throw new IllegalArgumentException('At least one record ID is required');
-        }
-        
-        if (String.isBlank(primaryTemplateId)) {
-            throw new IllegalArgumentException('Primary template ID is required');
-        }
-        
-        // Validate templates based on test type
-        if (testType == 'Service Replies' && String.isBlank(secondaryTemplateId)) {
-            throw new IllegalArgumentException('Secondary template ID is required for Service Replies');
-        }
-        
-        return createTestBatchForType(testType, recordIds, primaryTemplateId, secondaryTemplateId, retrieverId);
     }
 
     private static Map<String, Object> createTestBatchForType(
@@ -652,14 +687,20 @@ public with sharing class ziip_PromptTestUtil_Controller {
         List<String> recordIds,
         String primaryTemplateId,
         String secondaryTemplateId,
-        String retrieverId
+        String retrieverId,
+        Boolean enableQualityAssessment,
+        String faithfulnessTemplateId,
+        String relevancyTemplateId,
+        String contextQualityTemplateId,
+        Boolean primaryUsesKnowledgeGrounding,
+        Boolean secondaryUsesKnowledgeGrounding
     ) {
         if (testType == 'Service Replies') {
-            return createServiceRepliesTests(recordIds, primaryTemplateId, secondaryTemplateId, retrieverId);
+            return createServiceRepliesTests(recordIds, primaryTemplateId, secondaryTemplateId, retrieverId, enableQualityAssessment, faithfulnessTemplateId, relevancyTemplateId, contextQualityTemplateId, primaryUsesKnowledgeGrounding, secondaryUsesKnowledgeGrounding);
         } else if (testType == 'Case Summary') {
-            return createCaseSummaryTests(recordIds, primaryTemplateId, testType);
+            return createCaseSummaryTests(recordIds, primaryTemplateId, testType, enableQualityAssessment, faithfulnessTemplateId, relevancyTemplateId, contextQualityTemplateId, primaryUsesKnowledgeGrounding);
         } else if (testType == 'Work Summary') {
-            return createWorkSummaryTests(recordIds, primaryTemplateId, testType);
+            return createWorkSummaryTests(recordIds, primaryTemplateId, testType, enableQualityAssessment, faithfulnessTemplateId, relevancyTemplateId, contextQualityTemplateId, primaryUsesKnowledgeGrounding);
         } else {
             throw new IllegalArgumentException('Unsupported test type: ' + testType);
         }
@@ -669,7 +710,13 @@ public with sharing class ziip_PromptTestUtil_Controller {
         List<String> sessionIds,
         String primaryTemplateId,
         String secondaryTemplateId,
-        String retrieverId
+        String retrieverId,
+        Boolean enableQualityAssessment,
+        String faithfulnessTemplateId,
+        String relevancyTemplateId,
+        String contextQualityTemplateId,
+        Boolean primaryUsesKnowledgeGrounding,
+        Boolean secondaryUsesKnowledgeGrounding
     ) {
         // STEP 1: Perform all callouts first (before any DML operations)
         Map<Id, List<Map<String, Object>>> sessionUtterancesMap = new Map<Id, List<Map<String, Object>>>();
@@ -725,13 +772,21 @@ public with sharing class ziip_PromptTestUtil_Controller {
         
         // STEP 2: Perform all DML operations after callouts are complete
         
-        // Create the test batch - populate template fields for visibility
+        // Use user-provided knowledge grounding information
+        Boolean primaryUsesKnowledge = primaryUsesKnowledgeGrounding != null ? primaryUsesKnowledgeGrounding : false;
+        Boolean secondaryUsesKnowledge = secondaryUsesKnowledgeGrounding != null ? secondaryUsesKnowledgeGrounding : false;
+        
+        // Create the test batch - populate template fields for visibility and quality assessment fields
         Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
             Test_Type__c = 'Service Replies',
             Status__c = 'Pending',
             Retriever_Id__c = retrieverId,
             Contextual_Template_Id__c = primaryTemplateId,
-            Grounded_Template_Id__c = secondaryTemplateId
+            Grounded_Template_Id__c = secondaryTemplateId,
+            Enable_Quality_Assessment__c = enableQualityAssessment,
+            Faithfulness_Template_Id__c = String.isNotBlank(faithfulnessTemplateId) ? faithfulnessTemplateId : null,
+            Relevancy_Template_Id__c = String.isNotBlank(relevancyTemplateId) ? relevancyTemplateId : null,
+            Context_Quality_Template_Id__c = String.isNotBlank(contextQualityTemplateId) ? contextQualityTemplateId : null
         );
         insert testBatch;
         
@@ -755,6 +810,8 @@ public with sharing class ziip_PromptTestUtil_Controller {
                     Transcript__c = cumulativeTranscript,
                     Template_Id__c = primaryTemplateId,
                     Template_Type__c = 'Service Reply - Contextual',
+                    Uses_Knowledge_Grounding__c = primaryUsesKnowledgeGrounding != null ? primaryUsesKnowledgeGrounding : false,
+                    Quality_Metrics_Status__c = enableQualityAssessment ? 'Pending' : 'Not Applicable',
                     Related_Test__c = null
                 );
                 tests.add(contextualTest);
@@ -769,6 +826,8 @@ public with sharing class ziip_PromptTestUtil_Controller {
                     Transcript__c = cumulativeTranscript,
                     Template_Id__c = secondaryTemplateId,
                     Template_Type__c = 'Service Reply - Grounded',
+                    Uses_Knowledge_Grounding__c = secondaryUsesKnowledgeGrounding != null ? secondaryUsesKnowledgeGrounding : false,
+                    Quality_Metrics_Status__c = enableQualityAssessment ? 'Pending' : 'Not Applicable',
                     Related_Test__c = null // Will be set after contextual test is inserted
                 );
                 tests.add(groundedTest);
@@ -947,16 +1006,29 @@ public with sharing class ziip_PromptTestUtil_Controller {
         
         return customerUtterances;
     }
+    
 
     private static Map<String, Object> createCaseSummaryTests(
         List<String> caseIds,
-        String templateId,
-        String testType
+        String primaryTemplateId,
+        String testType,
+        Boolean enableQualityAssessment,
+        String faithfulnessTemplateId,
+        String relevancyTemplateId,
+        String contextQualityTemplateId,
+        Boolean primaryUsesKnowledgeGrounding
     ) {
+        // Use user-provided knowledge grounding information
+        Boolean primaryUsesKnowledge = primaryUsesKnowledgeGrounding != null ? primaryUsesKnowledgeGrounding : false;
+        
         // Create the test batch first
         Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
             Test_Type__c = testType,
-            Status__c = 'Pending'
+            Status__c = 'Pending',
+            Enable_Quality_Assessment__c = enableQualityAssessment,
+            Faithfulness_Template_Id__c = String.isNotBlank(faithfulnessTemplateId) ? faithfulnessTemplateId : null,
+            Relevancy_Template_Id__c = String.isNotBlank(relevancyTemplateId) ? relevancyTemplateId : null,
+            Context_Quality_Template_Id__c = String.isNotBlank(contextQualityTemplateId) ? contextQualityTemplateId : null
         );
         insert testBatch;
         
@@ -985,8 +1057,10 @@ public with sharing class ziip_PromptTestUtil_Controller {
                     Prompt_Test_Batch__c = testBatch.Id,
                     Case__c = caseId,
                     Status__c = 'Pending',
-                    Template_Id__c = templateId,
-                    Template_Type__c = 'Case Summary'
+                    Template_Id__c = primaryTemplateId,
+                    Template_Type__c = 'Case Summary',
+                    Uses_Knowledge_Grounding__c = primaryUsesKnowledgeGrounding != null ? primaryUsesKnowledgeGrounding : false,
+                    Quality_Metrics_Status__c = enableQualityAssessment ? 'Pending' : 'Not Applicable'
                 ));
                 
                 casesProcessed++;
@@ -1013,13 +1087,25 @@ public with sharing class ziip_PromptTestUtil_Controller {
 
     private static Map<String, Object> createWorkSummaryTests(
         List<String> recordIds,
-        String templateId,
-        String testType
+        String primaryTemplateId,
+        String testType,
+        Boolean enableQualityAssessment,
+        String faithfulnessTemplateId,
+        String relevancyTemplateId,
+        String contextQualityTemplateId,
+        Boolean primaryUsesKnowledgeGrounding
     ) {
+        // Use user-provided knowledge grounding information
+        Boolean primaryUsesKnowledge = primaryUsesKnowledgeGrounding != null ? primaryUsesKnowledgeGrounding : false;
+        
         // Create the test batch first
         Prompt_Test_Batch__c testBatch = new Prompt_Test_Batch__c(
             Test_Type__c = testType,
-            Status__c = 'Pending'
+            Status__c = 'Pending',
+            Enable_Quality_Assessment__c = enableQualityAssessment,
+            Faithfulness_Template_Id__c = String.isNotBlank(faithfulnessTemplateId) ? faithfulnessTemplateId : null,
+            Relevancy_Template_Id__c = String.isNotBlank(relevancyTemplateId) ? relevancyTemplateId : null,
+            Context_Quality_Template_Id__c = String.isNotBlank(contextQualityTemplateId) ? contextQualityTemplateId : null
         );
         insert testBatch;
         
@@ -1057,8 +1143,10 @@ public with sharing class ziip_PromptTestUtil_Controller {
                         Prompt_Test_Batch__c = testBatch.Id,
                         Messaging_Session__c = sessionId,
                         Status__c = 'Pending',
-                        Template_Id__c = templateId,
-                        Template_Type__c = 'Work Summary'
+                        Template_Id__c = primaryTemplateId,
+                        Template_Type__c = 'Work Summary',
+                        Uses_Knowledge_Grounding__c = primaryUsesKnowledgeGrounding != null ? primaryUsesKnowledgeGrounding : false,
+                        Quality_Metrics_Status__c = enableQualityAssessment ? 'Pending' : 'Not Applicable'
                     ));
                     
                     recordsProcessed++;
@@ -1089,8 +1177,10 @@ public with sharing class ziip_PromptTestUtil_Controller {
                         Prompt_Test_Batch__c = testBatch.Id,
                         Voice_Call__c = voiceCallId,
                         Status__c = 'Pending',
-                        Template_Id__c = templateId,
-                        Template_Type__c = 'Work Summary'
+                        Template_Id__c = primaryTemplateId,
+                        Template_Type__c = 'Work Summary',
+                        Uses_Knowledge_Grounding__c = primaryUsesKnowledgeGrounding != null ? primaryUsesKnowledgeGrounding : false,
+                        Quality_Metrics_Status__c = enableQualityAssessment ? 'Pending' : 'Not Applicable'
                     ));
                     
                     recordsProcessed++;
