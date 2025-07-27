@@ -667,21 +667,21 @@ export default class Ziip_promptTestUtility extends LightningElement {
         .then(result => {
             console.log('Test batch creation result:', result);
             
-            let message = `${result.testType} test batch created successfully!<br/>`;
-            message += `Batch ID: ${result.batchId}<br/>`;
-            message += `Test Records Created: ${result.testRecordsCreated}<br/>`;
+            let message = `${result.testType} test batch created successfully!\n`;
+            message += `Batch ID: ${result.batchId}\n`;
+            message += `Test Records Created: ${result.testRecordsCreated}\n`;
             message += `Records Processed: ${result.recordsProcessed}`;
             
             if (result.totalCustomerUtterances) {
-                message += `<br/>Customer Utterances Found: ${result.totalCustomerUtterances}`;
+                message += `\nCustomer Utterances Found: ${result.totalCustomerUtterances}`;
             }
             
             if (result.recordsSkipped > 0) {
-                message += `<br/>Records Skipped: ${result.recordsSkipped}`;
+                message += `\nRecords Skipped: ${result.recordsSkipped}`;
             }
             
             if (result.dataSourceType) {
-                message += `<br/>Data Source Type: ${result.dataSourceType}`;
+                message += `\nData Source Type: ${result.dataSourceType}`;
             }
             
             this.showToast('Success', message, 'success');
