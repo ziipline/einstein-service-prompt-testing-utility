@@ -249,6 +249,130 @@
     </flexiPageRegions>
     <flexiPageRegions>
         <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.RAGAS_Context_Quality_Score__c</fieldItem>
+                <identifier>RecordRAGAS_Context_Quality_Score_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.RAGAS_Faithfulness_Score__c</fieldItem>
+                <identifier>RecordRAGAS_Faithfulness_Score_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.RAGAS_Relevancy_Score__c</fieldItem>
+                <identifier>RecordRAGAS_Relevancy_Score_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Quality_Assessment_Details__c</fieldItem>
+                <identifier>RecordQuality_Assessment_Details_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <name>Facet-6fdfb17f-0c56-4a9a-834a-1badc51b6e02</name>
+        <type>Facet</type>
+    </flexiPageRegions>
+    <flexiPageRegions>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.RAGAS_Context_Quality_Analysis__c</fieldItem>
+                <identifier>RecordRAGAS_Context_Quality_Analysis_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.RAGAS_Faithfulness_Analysis__c</fieldItem>
+                <identifier>RecordRAGAS_Faithfulness_Analysis_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.RAGAS_Relevancy_Analysis__c</fieldItem>
+                <identifier>RecordRAGAS_Relevancy_Analysis_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <name>Facet-c96fadaa-db37-44cf-8938-bd13832fdd67</name>
+        <type>Facet</type>
+    </flexiPageRegions>
+    <flexiPageRegions>
+        <itemInstances>
+            <componentInstance>
+                <componentInstanceProperties>
+                    <name>body</name>
+                    <value>Facet-6fdfb17f-0c56-4a9a-834a-1badc51b6e02</value>
+                </componentInstanceProperties>
+                <componentName>flexipage:column</componentName>
+                <identifier>flexipage_column8</identifier>
+            </componentInstance>
+        </itemInstances>
+        <itemInstances>
+            <componentInstance>
+                <componentInstanceProperties>
+                    <name>body</name>
+                    <value>Facet-c96fadaa-db37-44cf-8938-bd13832fdd67</value>
+                </componentInstanceProperties>
+                <componentName>flexipage:column</componentName>
+                <identifier>flexipage_column9</identifier>
+            </componentInstance>
+        </itemInstances>
+        <name>Facet-9f82ae4b-c75f-4f57-94e3-05a9c5cc1b0e</name>
+        <type>Facet</type>
+    </flexiPageRegions>
+    <flexiPageRegions>
+        <itemInstances>
+            <componentInstance>
+                <componentInstanceProperties>
+                    <name>columns</name>
+                    <value>Facet-9f82ae4b-c75f-4f57-94e3-05a9c5cc1b0e</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
+                    <name>horizontalAlignment</name>
+                    <value>true</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
+                    <name>label</name>
+                    <value>Quality Assessment RAGAS</value>
+                </componentInstanceProperties>
+                <componentName>flexipage:fieldSection</componentName>
+                <identifier>flexipage_fieldSection7</identifier>
+            </componentInstance>
+        </itemInstances>
+        <name>Facet-47e614d6-262c-4953-ad72-8aa89a51b8a5</name>
+        <type>Facet</type>
+    </flexiPageRegions>
+    <flexiPageRegions>
+        <itemInstances>
             <componentInstance>
                 <componentInstanceProperties>
                     <name>body</name>
@@ -256,7 +380,7 @@
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>label</name>
-                    <value>Test Run</value>
+                    <value>Prompt Input / Response</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>name</name>
@@ -264,6 +388,24 @@
                 </componentInstanceProperties>
                 <componentName>flexipage:accordionSection</componentName>
                 <identifier>flexipage_accordionSection</identifier>
+            </componentInstance>
+        </itemInstances>
+        <itemInstances>
+            <componentInstance>
+                <componentInstanceProperties>
+                    <name>body</name>
+                    <value>Facet-47e614d6-262c-4953-ad72-8aa89a51b8a5</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
+                    <name>label</name>
+                    <value>RAGAS Quality Assessment</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
+                    <name>name</name>
+                    <value>accordionSection--3607lroz43n</value>
+                </componentInstanceProperties>
+                <componentName>flexipage:accordionSection</componentName>
+                <identifier>flexipage_accordionSection2</identifier>
             </componentInstance>
         </itemInstances>
         <name>Facet-2508a3e1-0c16-452e-ba74-f867d1e15d4a</name>
@@ -297,6 +439,16 @@
                 </fieldInstanceProperties>
                 <fieldItem>Record.Status__c</fieldItem>
                 <identifier>RecordStatus_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Quality_Metrics_Status__c</fieldItem>
+                <identifier>RecordQuality_Metrics_Status_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>
@@ -351,6 +503,16 @@
                 </fieldInstanceProperties>
                 <fieldItem>Record.Template_Id__c</fieldItem>
                 <identifier>RecordTemplate_Id_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
+                <fieldItem>Record.Uses_Knowledge_Grounding__c</fieldItem>
+                <identifier>RecordUses_Knowledge_Grounding_cField</identifier>
             </fieldInstance>
         </itemInstances>
         <itemInstances>

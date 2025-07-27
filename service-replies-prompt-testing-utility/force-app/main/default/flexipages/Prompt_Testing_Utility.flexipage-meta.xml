@@ -4,6 +4,22 @@
         <itemInstances>
             <componentInstance>
                 <componentInstanceProperties>
+                    <name>defaultContextQualityTemplateId</name>
+                    <value>0hfHn000000bpzmIAA</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
+                    <name>defaultFaithfulnessTemplateId</name>
+                    <value>0hfHn000000bpzcIAA</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
+                    <name>defaultRelevancyTemplateId</name>
+                    <value>0hfHn000000bpzhIAA</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
+                    <name>defaultRetrieverId</name>
+                    <value>1CxHn0000008OeMKAU</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
                     <name>messagingSessionsPageSize</name>
                     <value>10</value>
                 </componentInstanceProperties>
