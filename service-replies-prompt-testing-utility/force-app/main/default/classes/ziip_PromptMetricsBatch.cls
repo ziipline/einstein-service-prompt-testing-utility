@@ -1,6 +1,7 @@
-public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Database.AllowsCallouts {
+public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Database.AllowsCallouts, Database.Stateful {
     
     private Set<Id> batchIds;
+    public Integer batchSize;
     
     // Template types for RAGAS evaluation
     private static final String TEMPLATE_TYPE_FAITHFULNESS = 'RAGAS Faithfulness';
@@ -11,11 +12,26 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
     private static final String APPLICATION_NAME = 'PromptTemplateGenerationsInvocable';
     private static final Integer NUM_GENERATIONS = 1;
     
+    // Governor limit constants for batch sizing
+    private static final Integer MAX_CALLOUTS_PER_TRANSACTION = 100;
+    private static final Integer DEFAULT_BATCH_SIZE = 200;
+    private static final Integer CALLOUT_SAFETY_BUFFER = 10; // Leave buffer for other operations
+    private static final Integer MAX_CALLOUTS_PER_RECORD = 3; // Faithfulness + Relevancy + Context Quality
+    
+    // Constructor with default batch size
     public ziip_PromptMetricsBatch(Set<Id> batchIds) {
         this.batchIds = batchIds;
+        this.batchSize = calculateOptimalBatchSize(batchIds);
+    }
+    
+    // Constructor with custom batch size (for manual override)
+    public ziip_PromptMetricsBatch(Set<Id> batchIds, Integer customBatchSize) {
+        this.batchIds = batchIds;
+        this.batchSize = customBatchSize != null && customBatchSize > 0 ? customBatchSize : calculateOptimalBatchSize(batchIds);
     }
     
     public Database.QueryLocator start(Database.BatchableContext bc) {
+        System.debug('Starting RAGAS metrics batch with batch size: ' + batchSize);
         return Database.getQueryLocator([
             SELECT Id, Result__c, Raw_Result__c, Customer_Utterance__c, 
                    Transcript__c, Template_Type__c, Case__c, Voice_Call__c, Messaging_Session__c,
@@ -89,6 +105,82 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
     public void finish(Database.BatchableContext bc) {
         // Log completion and update batch status if needed
         System.debug('RAGAS quality assessment batch completed for batches: ' + batchIds);
+    }
+    
+    /**
+     * Calculates optimal batch size based on assessment templates configured and callout limits
+     * @param batchIds Set of batch IDs to analyze
+     * @return Integer optimal batch size for processing
+     */
+    private Integer calculateOptimalBatchSize(Set<Id> batchIds) {
+        try {
+            System.debug('=== CALCULATING OPTIMAL BATCH SIZE ===');
+            System.debug('Analyzing batches: ' + batchIds);
+            
+            // Query batch configurations to determine how many callouts per record
+            List<Prompt_Test_Batch__c> batches = [
+                SELECT Id, Enable_Quality_Assessment__c,
+                       Faithfulness_Template_Id__c, Relevancy_Template_Id__c, 
+                       Context_Quality_Template_Id__c
+                FROM Prompt_Test_Batch__c 
+                WHERE Id IN :batchIds
+            ];
+            
+            Integer maxCalloutsPerRecord = 0;
+            
+            for (Prompt_Test_Batch__c batch : batches) {
+                Integer calloutsForThisBatch = 0;
+                
+                // Count configured assessment templates
+                if (batch.Enable_Quality_Assessment__c == true) {
+                    if (String.isNotBlank(batch.Faithfulness_Template_Id__c)) {
+                        calloutsForThisBatch++;
+                    }
+                    if (String.isNotBlank(batch.Relevancy_Template_Id__c)) {
+                        calloutsForThisBatch++;
+                    }
+                    if (String.isNotBlank(batch.Context_Quality_Template_Id__c)) {
+                        calloutsForThisBatch++;
+                    }
+                }
+                
+                // Track the maximum callouts needed per record across all batches
+                maxCalloutsPerRecord = Math.max(maxCalloutsPerRecord, calloutsForThisBatch);
+                
+                System.debug('Batch ' + batch.Id + ' requires ' + calloutsForThisBatch + ' callouts per record');
+            }
+            
+            // Calculate safe batch size
+            Integer optimalBatchSize;
+            if (maxCalloutsPerRecord == 0) {
+                // No quality assessment enabled, use default batch size
+                optimalBatchSize = DEFAULT_BATCH_SIZE;
+                System.debug('No quality assessment enabled, using default batch size: ' + optimalBatchSize);
+            } else {
+                // Calculate based on callout limits with safety buffer
+                Integer maxSafeCallouts = MAX_CALLOUTS_PER_TRANSACTION - CALLOUT_SAFETY_BUFFER;
+                optimalBatchSize = Math.max(1, maxSafeCallouts / maxCalloutsPerRecord);
+                
+                // Cap at reasonable maximum to avoid other governor limits
+                optimalBatchSize = Math.min(optimalBatchSize, 50);
+                
+                System.debug('Calculated batch size: ' + optimalBatchSize + 
+                           ' (max callouts per record: ' + maxCalloutsPerRecord + 
+                           ', safe callout limit: ' + maxSafeCallouts + ')');
+            }
+            
+            System.debug('Final optimal batch size: ' + optimalBatchSize);
+            System.debug('=== BATCH SIZE CALCULATION COMPLETE ===');
+            
+            return optimalBatchSize;
+            
+        } catch (Exception e) {
+            System.debug('Error calculating optimal batch size: ' + e.getMessage());
+            // Fallback to conservative batch size on error
+            Integer fallbackSize = (MAX_CALLOUTS_PER_TRANSACTION - CALLOUT_SAFETY_BUFFER) / MAX_CALLOUTS_PER_RECORD;
+            System.debug('Using fallback batch size: ' + fallbackSize);
+            return Math.max(1, fallbackSize);
+        }
     }
     
     private Map<String, Object> evaluateTestQuality(Prompt_Test__c test) {
