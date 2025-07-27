@@ -281,6 +281,9 @@ export default class Ziip_promptTestUtility extends LightningElement {
 
     handleTemplateTypeFilterChange(event) {
         this.templateTypeFilter = event.target.value;
+        // Automatically apply filter when template type changes
+        this.templateCurrentPage = 1;
+        this.loadTemplates();
     }
 
     handleTemplateStatusFilterChange(event) {
