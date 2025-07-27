@@ -335,13 +335,25 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
             };
         }
         
-        // Try JSON parsing first
+        // Try JSON parsing first (direct JSON)
         try {
             Map<String, Object> jsonResult = (Map<String, Object>) JSON.deserializeUntyped(generatedText);
-            System.debug('Successfully parsed as JSON: ' + JSON.serialize(jsonResult));
+            System.debug('Successfully parsed as direct JSON: ' + JSON.serialize(jsonResult));
             return jsonResult;
         } catch (Exception jsonE) {
-            System.debug('JSON parsing failed: ' + jsonE.getMessage());
+            System.debug('Direct JSON parsing failed: ' + jsonE.getMessage());
+        }
+        
+        // Try to extract JSON from markdown code blocks
+        String extractedJson = extractJsonFromMarkdown(generatedText);
+        if (String.isNotBlank(extractedJson)) {
+            try {
+                Map<String, Object> jsonResult = (Map<String, Object>) JSON.deserializeUntyped(extractedJson);
+                System.debug('Successfully parsed JSON from markdown: ' + JSON.serialize(jsonResult));
+                return jsonResult;
+            } catch (Exception jsonE) {
+                System.debug('Markdown JSON parsing failed: ' + jsonE.getMessage());
+            }
         }
         
         // Try to extract score from plain text responses
@@ -349,6 +361,52 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
         System.debug('Text extraction result: ' + JSON.serialize(textResult));
         
         return textResult;
+    }
+    
+    private String extractJsonFromMarkdown(String text) {
+        if (String.isBlank(text)) {
+            return null;
+        }
+        
+        // Look for JSON code blocks (```json ... ```)
+        String lowerText = text.toLowerCase();
+        Integer jsonStart = lowerText.indexOf('```json');
+        if (jsonStart >= 0) {
+            // Find the start of the actual JSON content
+            Integer contentStart = text.indexOf('\n', jsonStart);
+            if (contentStart >= 0) {
+                contentStart++; // Move past the newline
+                
+                // Find the end of the code block
+                Integer contentEnd = text.indexOf('```', contentStart);
+                if (contentEnd >= 0) {
+                    String jsonContent = text.substring(contentStart, contentEnd).trim();
+                    System.debug('Extracted JSON from markdown: ' + jsonContent);
+                    return jsonContent;
+                }
+            }
+        }
+        
+        // Look for generic code blocks (``` ... ```) that might contain JSON
+        Integer codeStart = text.indexOf('```');
+        if (codeStart >= 0) {
+            Integer contentStart = text.indexOf('\n', codeStart);
+            if (contentStart >= 0) {
+                contentStart++; // Move past the newline
+                
+                Integer contentEnd = text.indexOf('```', contentStart);
+                if (contentEnd >= 0) {
+                    String codeContent = text.substring(contentStart, contentEnd).trim();
+                    // Check if this looks like JSON (starts with { and ends with })
+                    if (codeContent.startsWith('{') && codeContent.endsWith('}')) {
+                        System.debug('Extracted JSON from generic code block: ' + codeContent);
+                        return codeContent;
+                    }
+                }
+            }
+        }
+        
+        return null;
     }
     
     private Map<String, Object> extractScoreFromText(String text, String templateId) {
