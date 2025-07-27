@@ -424,7 +424,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
                         id: session.Id,
                         name: session.Name,
                         nameUrl: `/lightning/r/MessagingSession/${session.Id}/view`,
-                        transcript: session.transcript ? session.transcript.substring(0, 200) + '...' : 'No transcript available'
+                        transcript: session.transcript ? this.truncateTranscriptByUtterances(session.transcript, 6) : 'No transcript available'
                     }));
                 }
                 break;
@@ -1059,6 +1059,64 @@ export default class Ziip_promptTestUtility extends LightningElement {
     }
 
     // UTILITY METHODS
+
+    truncateTranscriptByUtterances(transcript, maxUtterances = 6) {
+        if (!transcript) return 'No transcript available';
+        
+        // Try to split by common utterance delimiters
+        // Look for patterns like "Agent:", "Customer:", "User:", or line breaks that indicate new speakers
+        let utterances = [];
+        
+        // Split by lines and filter out empty lines
+        const lines = transcript.split('\n').filter(line => line.trim());
+        
+        // If we have line-based utterances, use those
+        if (lines.length > 1) {
+            utterances = lines;
+        } else {
+            // Fallback: try to split by common speaker patterns
+            const speakerPattern = /(?:Agent|Customer|User|Bot|System|Rep):/gi;
+            const parts = transcript.split(speakerPattern);
+            
+            if (parts.length > 1) {
+                // Reconstruct with speakers - skip first empty part if it exists
+                const speakers = transcript.match(speakerPattern) || [];
+                utterances = [];
+                let startIndex = parts[0].trim() === '' ? 1 : 0;
+                
+                for (let i = startIndex; i < parts.length && i - startIndex < speakers.length; i++) {
+                    if (parts[i].trim()) {
+                        utterances.push((speakers[i - startIndex] || '') + parts[i].trim());
+                    }
+                }
+            } else {
+                // Final fallback: split by sentence-like patterns or use character limit
+                const sentences = transcript.split(/[.!?]+/).filter(s => s.trim());
+                if (sentences.length > 1) {
+                    utterances = sentences.map(s => s.trim() + '.');
+                } else {
+                    // No clear utterance boundaries found, use original character-based truncation
+                    return transcript.length > 300 ? transcript.substring(0, 300) + '...' : transcript;
+                }
+            }
+        }
+        
+        // Take the first maxUtterances
+        const selectedUtterances = utterances.slice(0, maxUtterances);
+        let result = selectedUtterances.join('\n');
+        
+        // Add ellipsis if we truncated
+        if (utterances.length > maxUtterances) {
+            result += '\n...';
+        }
+        
+        // Ensure we don't return an overly long result (safety check)
+        if (result.length > 500) {
+            result = result.substring(0, 500) + '...';
+        }
+        
+        return result;
+    }
 
     showToast(title, message, variant) {
         const evt = new ShowToastEvent({
