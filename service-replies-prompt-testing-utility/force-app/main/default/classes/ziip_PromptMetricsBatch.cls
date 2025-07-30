@@ -108,16 +108,16 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
     }
     
     /**
-     * Calculates optimal batch size based on assessment templates configured and callout limits
+     * Calculates optimal batch size based on actual test distribution and callout requirements
      * @param batchIds Set of batch IDs to analyze
      * @return Integer optimal batch size for processing
      */
     private Integer calculateOptimalBatchSize(Set<Id> batchIds) {
         try {
-            System.debug('=== CALCULATING OPTIMAL BATCH SIZE ===');
+            System.debug('=== CALCULATING OPTIMAL BATCH SIZE (ENHANCED) ===');
             System.debug('Analyzing batches: ' + batchIds);
             
-            // Query batch configurations to determine how many callouts per record
+            // Query batch configurations to determine how many callouts per knowledge-grounded record
             List<Prompt_Test_Batch__c> batches = [
                 SELECT Id, Enable_Quality_Assessment__c,
                        Faithfulness_Template_Id__c, Relevancy_Template_Id__c, 
@@ -126,13 +126,15 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
                 WHERE Id IN :batchIds
             ];
             
-            Integer maxCalloutsPerRecord = 0;
+            Integer maxCalloutsPerKnowledgeRecord = 0;
+            Boolean hasQualityAssessment = false;
             
             for (Prompt_Test_Batch__c batch : batches) {
                 Integer calloutsForThisBatch = 0;
                 
                 // Count configured assessment templates
                 if (batch.Enable_Quality_Assessment__c == true) {
+                    hasQualityAssessment = true;
                     if (String.isNotBlank(batch.Faithfulness_Template_Id__c)) {
                         calloutsForThisBatch++;
                     }
@@ -144,42 +146,101 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
                     }
                 }
                 
-                // Track the maximum callouts needed per record across all batches
-                maxCalloutsPerRecord = Math.max(maxCalloutsPerRecord, calloutsForThisBatch);
+                // Track the maximum callouts needed per knowledge-grounded record
+                maxCalloutsPerKnowledgeRecord = Math.max(maxCalloutsPerKnowledgeRecord, calloutsForThisBatch);
                 
-                System.debug('Batch ' + batch.Id + ' requires ' + calloutsForThisBatch + ' callouts per record');
+                System.debug('Batch ' + batch.Id + ' requires ' + calloutsForThisBatch + ' callouts per knowledge-grounded record');
             }
             
-            // Calculate safe batch size
+            // If no quality assessment enabled, use default batch size
+            if (!hasQualityAssessment || maxCalloutsPerKnowledgeRecord == 0) {
+                Integer defaultSize = DEFAULT_BATCH_SIZE;
+                System.debug('No quality assessment enabled, using default batch size: ' + defaultSize);
+                System.debug('=== BATCH SIZE CALCULATION COMPLETE ===');
+                return defaultSize;
+            }
+            
+            // Query actual test distribution to get precise callout requirements
+            List<AggregateResult> testDistribution = [
+                SELECT COUNT(Id) recordCount, Uses_Knowledge_Grounding__c knowsGrounding
+                FROM Prompt_Test__c 
+                WHERE Prompt_Test_Batch__c IN :batchIds 
+                AND Status__c = 'Completed' 
+                AND Quality_Metrics_Status__c = 'Pending'
+                GROUP BY Uses_Knowledge_Grounding__c
+            ];
+            
+            Integer knowledgeGroundedTests = 0;
+            Integer totalTests = 0;
+            
+            for (AggregateResult result : testDistribution) {
+                Integer count = (Integer) result.get('recordCount');
+                Boolean isKnowledgeGrounded = (Boolean) result.get('knowsGrounding');
+                
+                totalTests += count;
+                if (isKnowledgeGrounded == true) {
+                    knowledgeGroundedTests += count;
+                }
+                
+                System.debug('Tests with Uses_Knowledge_Grounding__c = ' + isKnowledgeGrounded + ': ' + count);
+            }
+            
+            System.debug('Total tests: ' + totalTests);
+            System.debug('Knowledge-grounded tests: ' + knowledgeGroundedTests);
+            System.debug('Max callouts per knowledge-grounded test: ' + maxCalloutsPerKnowledgeRecord);
+            
+            // Calculate optimal batch size based on actual distribution
             Integer optimalBatchSize;
-            if (maxCalloutsPerRecord == 0) {
-                // No quality assessment enabled, use default batch size
+            
+            if (knowledgeGroundedTests == 0) {
+                // No knowledge-grounded tests, no callouts needed
                 optimalBatchSize = DEFAULT_BATCH_SIZE;
-                System.debug('No quality assessment enabled, using default batch size: ' + optimalBatchSize);
-            } else {
-                // Calculate based on callout limits with safety buffer
+                System.debug('No knowledge-grounded tests found, using default batch size: ' + optimalBatchSize);
+            } else if (totalTests == knowledgeGroundedTests) {
+                // All tests are knowledge-grounded, use simple calculation
                 Integer maxSafeCallouts = MAX_CALLOUTS_PER_TRANSACTION - CALLOUT_SAFETY_BUFFER;
-                optimalBatchSize = Math.max(1, maxSafeCallouts / maxCalloutsPerRecord);
+                optimalBatchSize = Math.max(1, maxSafeCallouts / maxCalloutsPerKnowledgeRecord);
+                System.debug('All tests are knowledge-grounded, calculated batch size: ' + optimalBatchSize);
+            } else {
+                // Mixed distribution - calculate based on expected callouts per batch
+                Decimal knowledgeRatio = Decimal.valueOf(knowledgeGroundedTests) / Decimal.valueOf(totalTests);
+                Integer maxSafeCallouts = MAX_CALLOUTS_PER_TRANSACTION - CALLOUT_SAFETY_BUFFER;
                 
-                // Cap at reasonable maximum to avoid other governor limits
-                optimalBatchSize = Math.min(optimalBatchSize, 50);
+                // Expected callouts per batch = batch_size * knowledge_ratio * callouts_per_knowledge_test
+                // Solve for batch_size: batch_size = max_safe_callouts / (knowledge_ratio * callouts_per_knowledge_test)
+                Decimal expectedCalloutsPerRecord = knowledgeRatio * maxCalloutsPerKnowledgeRecord;
+                optimalBatchSize = Math.max(1, (maxSafeCallouts / expectedCalloutsPerRecord).intValue());
                 
-                System.debug('Calculated batch size: ' + optimalBatchSize + 
-                           ' (max callouts per record: ' + maxCalloutsPerRecord + 
-                           ', safe callout limit: ' + maxSafeCallouts + ')');
+                System.debug('Mixed distribution - Knowledge ratio: ' + knowledgeRatio.setScale(3));
+                System.debug('Expected callouts per record: ' + expectedCalloutsPerRecord.setScale(3));
+                System.debug('Calculated batch size: ' + optimalBatchSize);
+            }
+            
+            // Cap at reasonable maximum to avoid other governor limits (DML, CPU, etc.)
+            optimalBatchSize = Math.min(optimalBatchSize, 50);
+            
+            // Additional validation: ensure batch size makes sense given total test count
+            if (totalTests > 0 && optimalBatchSize > totalTests) {
+                optimalBatchSize = Math.min(optimalBatchSize, totalTests);
+                System.debug('Adjusted batch size to match total test count: ' + optimalBatchSize);
             }
             
             System.debug('Final optimal batch size: ' + optimalBatchSize);
+            System.debug('Expected max callouts per batch: ' + 
+                       (optimalBatchSize * maxCalloutsPerKnowledgeRecord * 
+                        (knowledgeGroundedTests > 0 ? Decimal.valueOf(knowledgeGroundedTests) / totalTests : 0)).intValue());
             System.debug('=== BATCH SIZE CALCULATION COMPLETE ===');
             
             return optimalBatchSize;
             
         } catch (Exception e) {
             System.debug('Error calculating optimal batch size: ' + e.getMessage());
+            System.debug('Exception details: ' + e.getStackTraceString());
+            
             // Fallback to conservative batch size on error
-            Integer fallbackSize = (MAX_CALLOUTS_PER_TRANSACTION - CALLOUT_SAFETY_BUFFER) / MAX_CALLOUTS_PER_RECORD;
+            Integer fallbackSize = Math.max(1, (MAX_CALLOUTS_PER_TRANSACTION - CALLOUT_SAFETY_BUFFER) / MAX_CALLOUTS_PER_RECORD);
             System.debug('Using fallback batch size: ' + fallbackSize);
-            return Math.max(1, fallbackSize);
+            return fallbackSize;
         }
     }
     
