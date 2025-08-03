@@ -1,6 +1,7 @@
-public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Database.AllowsCallouts {
+public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Database.AllowsCallouts, Database.Stateful {
     
     private Set<Id> batchIds;
+    public Integer batchSize;
     
     // Template types for RAGAS evaluation
     private static final String TEMPLATE_TYPE_FAITHFULNESS = 'RAGAS Faithfulness';
@@ -11,11 +12,26 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
     private static final String APPLICATION_NAME = 'PromptTemplateGenerationsInvocable';
     private static final Integer NUM_GENERATIONS = 1;
     
+    // Governor limit constants for batch sizing
+    private static final Integer MAX_CALLOUTS_PER_TRANSACTION = 100;
+    private static final Integer DEFAULT_BATCH_SIZE = 200;
+    private static final Integer CALLOUT_SAFETY_BUFFER = 10; // Leave buffer for other operations
+    private static final Integer MAX_CALLOUTS_PER_RECORD = 3; // Faithfulness + Relevancy + Context Quality
+    
+    // Constructor with default batch size
     public ziip_PromptMetricsBatch(Set<Id> batchIds) {
         this.batchIds = batchIds;
+        this.batchSize = calculateOptimalBatchSize(batchIds);
+    }
+    
+    // Constructor with custom batch size (for manual override)
+    public ziip_PromptMetricsBatch(Set<Id> batchIds, Integer customBatchSize) {
+        this.batchIds = batchIds;
+        this.batchSize = customBatchSize != null && customBatchSize > 0 ? customBatchSize : calculateOptimalBatchSize(batchIds);
     }
     
     public Database.QueryLocator start(Database.BatchableContext bc) {
+        System.debug('Starting RAGAS metrics batch with batch size: ' + batchSize);
         return Database.getQueryLocator([
             SELECT Id, Result__c, Raw_Result__c, Customer_Utterance__c, 
                    Transcript__c, Template_Type__c, Case__c, Voice_Call__c, Messaging_Session__c,
@@ -89,6 +105,143 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
     public void finish(Database.BatchableContext bc) {
         // Log completion and update batch status if needed
         System.debug('RAGAS quality assessment batch completed for batches: ' + batchIds);
+    }
+    
+    /**
+     * Calculates optimal batch size based on actual test distribution and callout requirements
+     * @param batchIds Set of batch IDs to analyze
+     * @return Integer optimal batch size for processing
+     */
+    private Integer calculateOptimalBatchSize(Set<Id> batchIds) {
+        try {
+            System.debug('=== CALCULATING OPTIMAL BATCH SIZE (ENHANCED) ===');
+            System.debug('Analyzing batches: ' + batchIds);
+            
+            // Query batch configurations to determine how many callouts per knowledge-grounded record
+            List<Prompt_Test_Batch__c> batches = [
+                SELECT Id, Enable_Quality_Assessment__c,
+                       Faithfulness_Template_Id__c, Relevancy_Template_Id__c, 
+                       Context_Quality_Template_Id__c
+                FROM Prompt_Test_Batch__c 
+                WHERE Id IN :batchIds
+            ];
+            
+            Integer maxCalloutsPerKnowledgeRecord = 0;
+            Boolean hasQualityAssessment = false;
+            
+            for (Prompt_Test_Batch__c batch : batches) {
+                Integer calloutsForThisBatch = 0;
+                
+                // Count configured assessment templates
+                if (batch.Enable_Quality_Assessment__c == true) {
+                    hasQualityAssessment = true;
+                    if (String.isNotBlank(batch.Faithfulness_Template_Id__c)) {
+                        calloutsForThisBatch++;
+                    }
+                    if (String.isNotBlank(batch.Relevancy_Template_Id__c)) {
+                        calloutsForThisBatch++;
+                    }
+                    if (String.isNotBlank(batch.Context_Quality_Template_Id__c)) {
+                        calloutsForThisBatch++;
+                    }
+                }
+                
+                // Track the maximum callouts needed per knowledge-grounded record
+                maxCalloutsPerKnowledgeRecord = Math.max(maxCalloutsPerKnowledgeRecord, calloutsForThisBatch);
+                
+                System.debug('Batch ' + batch.Id + ' requires ' + calloutsForThisBatch + ' callouts per knowledge-grounded record');
+            }
+            
+            // If no quality assessment enabled, use default batch size
+            if (!hasQualityAssessment || maxCalloutsPerKnowledgeRecord == 0) {
+                Integer defaultSize = DEFAULT_BATCH_SIZE;
+                System.debug('No quality assessment enabled, using default batch size: ' + defaultSize);
+                System.debug('=== BATCH SIZE CALCULATION COMPLETE ===');
+                return defaultSize;
+            }
+            
+            // Query actual test distribution to get precise callout requirements
+            List<AggregateResult> testDistribution = [
+                SELECT COUNT(Id) recordCount, Uses_Knowledge_Grounding__c knowsGrounding
+                FROM Prompt_Test__c 
+                WHERE Prompt_Test_Batch__c IN :batchIds 
+                AND Status__c = 'Completed' 
+                AND Quality_Metrics_Status__c = 'Pending'
+                GROUP BY Uses_Knowledge_Grounding__c
+            ];
+            
+            Integer knowledgeGroundedTests = 0;
+            Integer totalTests = 0;
+            
+            for (AggregateResult result : testDistribution) {
+                Integer count = (Integer) result.get('recordCount');
+                Boolean isKnowledgeGrounded = (Boolean) result.get('knowsGrounding');
+                
+                totalTests += count;
+                if (isKnowledgeGrounded == true) {
+                    knowledgeGroundedTests += count;
+                }
+                
+                System.debug('Tests with Uses_Knowledge_Grounding__c = ' + isKnowledgeGrounded + ': ' + count);
+            }
+            
+            System.debug('Total tests: ' + totalTests);
+            System.debug('Knowledge-grounded tests: ' + knowledgeGroundedTests);
+            System.debug('Max callouts per knowledge-grounded test: ' + maxCalloutsPerKnowledgeRecord);
+            
+            // Calculate optimal batch size based on actual distribution
+            Integer optimalBatchSize;
+            
+            if (knowledgeGroundedTests == 0) {
+                // No knowledge-grounded tests, no callouts needed
+                optimalBatchSize = DEFAULT_BATCH_SIZE;
+                System.debug('No knowledge-grounded tests found, using default batch size: ' + optimalBatchSize);
+            } else if (totalTests == knowledgeGroundedTests) {
+                // All tests are knowledge-grounded, use simple calculation
+                Integer maxSafeCallouts = MAX_CALLOUTS_PER_TRANSACTION - CALLOUT_SAFETY_BUFFER;
+                optimalBatchSize = Math.max(1, maxSafeCallouts / maxCalloutsPerKnowledgeRecord);
+                System.debug('All tests are knowledge-grounded, calculated batch size: ' + optimalBatchSize);
+            } else {
+                // Mixed distribution - calculate based on expected callouts per batch
+                Decimal knowledgeRatio = Decimal.valueOf(knowledgeGroundedTests) / Decimal.valueOf(totalTests);
+                Integer maxSafeCallouts = MAX_CALLOUTS_PER_TRANSACTION - CALLOUT_SAFETY_BUFFER;
+                
+                // Expected callouts per batch = batch_size * knowledge_ratio * callouts_per_knowledge_test
+                // Solve for batch_size: batch_size = max_safe_callouts / (knowledge_ratio * callouts_per_knowledge_test)
+                Decimal expectedCalloutsPerRecord = knowledgeRatio * maxCalloutsPerKnowledgeRecord;
+                optimalBatchSize = Math.max(1, (maxSafeCallouts / expectedCalloutsPerRecord).intValue());
+                
+                System.debug('Mixed distribution - Knowledge ratio: ' + knowledgeRatio.setScale(3));
+                System.debug('Expected callouts per record: ' + expectedCalloutsPerRecord.setScale(3));
+                System.debug('Calculated batch size: ' + optimalBatchSize);
+            }
+            
+            // Cap at reasonable maximum to avoid other governor limits (DML, CPU, etc.)
+            optimalBatchSize = Math.min(optimalBatchSize, 50);
+            
+            // Additional validation: ensure batch size makes sense given total test count
+            if (totalTests > 0 && optimalBatchSize > totalTests) {
+                optimalBatchSize = Math.min(optimalBatchSize, totalTests);
+                System.debug('Adjusted batch size to match total test count: ' + optimalBatchSize);
+            }
+            
+            System.debug('Final optimal batch size: ' + optimalBatchSize);
+            System.debug('Expected max callouts per batch: ' + 
+                       (optimalBatchSize * maxCalloutsPerKnowledgeRecord * 
+                        (knowledgeGroundedTests > 0 ? Decimal.valueOf(knowledgeGroundedTests) / totalTests : 0)).intValue());
+            System.debug('=== BATCH SIZE CALCULATION COMPLETE ===');
+            
+            return optimalBatchSize;
+            
+        } catch (Exception e) {
+            System.debug('Error calculating optimal batch size: ' + e.getMessage());
+            System.debug('Exception details: ' + e.getStackTraceString());
+            
+            // Fallback to conservative batch size on error
+            Integer fallbackSize = Math.max(1, (MAX_CALLOUTS_PER_TRANSACTION - CALLOUT_SAFETY_BUFFER) / MAX_CALLOUTS_PER_RECORD);
+            System.debug('Using fallback batch size: ' + fallbackSize);
+            return fallbackSize;
+        }
     }
     
     private Map<String, Object> evaluateTestQuality(Prompt_Test__c test) {
@@ -335,13 +488,25 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
             };
         }
         
-        // Try JSON parsing first
+        // Try JSON parsing first (direct JSON)
         try {
             Map<String, Object> jsonResult = (Map<String, Object>) JSON.deserializeUntyped(generatedText);
-            System.debug('Successfully parsed as JSON: ' + JSON.serialize(jsonResult));
+            System.debug('Successfully parsed as direct JSON: ' + JSON.serialize(jsonResult));
             return jsonResult;
         } catch (Exception jsonE) {
-            System.debug('JSON parsing failed: ' + jsonE.getMessage());
+            System.debug('Direct JSON parsing failed: ' + jsonE.getMessage());
+        }
+        
+        // Try to extract JSON from markdown code blocks
+        String extractedJson = extractJsonFromMarkdown(generatedText);
+        if (String.isNotBlank(extractedJson)) {
+            try {
+                Map<String, Object> jsonResult = (Map<String, Object>) JSON.deserializeUntyped(extractedJson);
+                System.debug('Successfully parsed JSON from markdown: ' + JSON.serialize(jsonResult));
+                return jsonResult;
+            } catch (Exception jsonE) {
+                System.debug('Markdown JSON parsing failed: ' + jsonE.getMessage());
+            }
         }
         
         // Try to extract score from plain text responses
@@ -349,6 +514,52 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
         System.debug('Text extraction result: ' + JSON.serialize(textResult));
         
         return textResult;
+    }
+    
+    private String extractJsonFromMarkdown(String text) {
+        if (String.isBlank(text)) {
+            return null;
+        }
+        
+        // Look for JSON code blocks (```json ... ```)
+        String lowerText = text.toLowerCase();
+        Integer jsonStart = lowerText.indexOf('```json');
+        if (jsonStart >= 0) {
+            // Find the start of the actual JSON content
+            Integer contentStart = text.indexOf('\n', jsonStart);
+            if (contentStart >= 0) {
+                contentStart++; // Move past the newline
+                
+                // Find the end of the code block
+                Integer contentEnd = text.indexOf('```', contentStart);
+                if (contentEnd >= 0) {
+                    String jsonContent = text.substring(contentStart, contentEnd).trim();
+                    System.debug('Extracted JSON from markdown: ' + jsonContent);
+                    return jsonContent;
+                }
+            }
+        }
+        
+        // Look for generic code blocks (``` ... ```) that might contain JSON
+        Integer codeStart = text.indexOf('```');
+        if (codeStart >= 0) {
+            Integer contentStart = text.indexOf('\n', codeStart);
+            if (contentStart >= 0) {
+                contentStart++; // Move past the newline
+                
+                Integer contentEnd = text.indexOf('```', contentStart);
+                if (contentEnd >= 0) {
+                    String codeContent = text.substring(contentStart, contentEnd).trim();
+                    // Check if this looks like JSON (starts with { and ends with })
+                    if (codeContent.startsWith('{') && codeContent.endsWith('}')) {
+                        System.debug('Extracted JSON from generic code block: ' + codeContent);
+                        return codeContent;
+                    }
+                }
+            }
+        }
+        
+        return null;
     }
     
     private Map<String, Object> extractScoreFromText(String text, String templateId) {

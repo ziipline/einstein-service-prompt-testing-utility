@@ -3,7 +3,7 @@
  * Supports multiple test types: Service Replies, Case Summary, Work Summary
  * @author Ziipline
  */
-public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Database.AllowsCallouts {
+public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Database.AllowsCallouts, Database.Stateful {
     
     /**
      * @description Wrapper class to hold prompt execution results
@@ -146,6 +146,11 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     
     private final Set<Id> batchIds;
     
+    // Dependency processing state
+    private Boolean processingChildTests = false; // Track if we're in child processing phase
+    private Integer executionCount = 0; // Prevent infinite loops
+    private static final Integer MAX_EXECUTIONS = 10; // Safety limit
+    
     /**
      * @description Constructor for the batch class
      * @param batchIds Set of Prompt Test Batch IDs to process
@@ -155,31 +160,60 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     }
     
     /**
-     * @description Start method for the batch job
+     * @description Start method for the batch job - implements dependency-aware processing
      * @param bc Database.BatchableContext
      * @return Database.QueryLocator for pending prompt tests
      */
     public Database.QueryLocator start(Database.BatchableContext bc) {
-        return Database.getQueryLocator([
-            SELECT Id, Prompt_Test_Batch__c, Messaging_Session__c, Case__c, Voice_Call__c, Status__c, 
-                   Transcript__c, Result__c, Template_Id__c, Template_Type__c, 
-                   Resolved_Prompt__c, Related_Test__c, Raw_Result__c, Request_ID__c,
-                   Customer_Utterance__c, Utterance_Sequence__c,
-                   Prompt_Test_Batch__r.Test_Type__c,
-                   Prompt_Test_Batch__r.Retriever_Id__c
-            FROM Prompt_Test__c 
-            WHERE Prompt_Test_Batch__c IN :batchIds
-            AND Status__c = :STATUS_PENDING
-        ]);
+        executionCount++; // Track execution count for safety
+        
+        System.debug('=== DEPENDENCY-AWARE BATCH START ===');
+        System.debug('Execution count: ' + executionCount);
+        System.debug('Processing child tests: ' + processingChildTests);
+        System.debug('Batch IDs: ' + batchIds);
+        
+        String queryCondition;
+        
+        if (!processingChildTests) {
+            // Phase 1: Process parent tests first (tests with no dependencies)
+            queryCondition = 'AND Related_Test__c = null';
+            System.debug('Phase 1: Querying for parent tests (Related_Test__c = null)');
+        } else {
+            // Phase 2: Process child tests (tests with dependencies)
+            queryCondition = 'AND Related_Test__c != null';
+            System.debug('Phase 2: Querying for child tests (Related_Test__c != null)');
+        }
+        
+        String queryString = 
+            'SELECT Id, Prompt_Test_Batch__c, Messaging_Session__c, Case__c, Voice_Call__c, Status__c, ' +
+            'Transcript__c, Result__c, Template_Id__c, Template_Type__c, ' +
+            'Resolved_Prompt__c, Related_Test__c, Raw_Result__c, Request_ID__c, ' +
+            'Customer_Utterance__c, Utterance_Sequence__c, ' +
+            'Prompt_Test_Batch__r.Test_Type__c, ' +
+            'Prompt_Test_Batch__r.Retriever_Id__c ' +
+            'FROM Prompt_Test__c ' +
+            'WHERE Prompt_Test_Batch__c IN :batchIds ' +
+            'AND Status__c = :STATUS_PENDING ' +
+            queryCondition;
+        
+        System.debug('Query: ' + queryString);
+        System.debug('=== DEPENDENCY-AWARE BATCH START COMPLETE ===');
+        
+        return Database.getQueryLocator(queryString);
     }
     
     /**
-     * @description Execute method for processing each batch of Prompt Tests
+     * @description Execute method for processing each batch of Prompt Tests with dependency validation
      * @param bc Database.BatchableContext
      * @param scope List of Prompt_Test__c records to process
      */
     public void execute(Database.BatchableContext bc, List<Prompt_Test__c> scope) {
         List<Prompt_Test__c> testsToUpdate = new List<Prompt_Test__c>();
+        Integer testsProcessed = 0;
+        Integer testsSkipped = 0;
+        
+        System.debug('=== EXECUTING BATCH WITH ' + scope.size() + ' TESTS ===');
+        System.debug('Processing child tests: ' + processingChildTests);
         
         for (Prompt_Test__c test : scope) {
             try {
@@ -189,8 +223,18 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                     continue;
                 }
                 
+                // Dependency validation for child tests
+                if (processingChildTests && test.Related_Test__c != null) {
+                    if (!isParentReady(test)) {
+                        System.debug('Skipping child test ' + test.Id + ' - parent test not ready');
+                        testsSkipped++;
+                        continue; // Skip processing, keep as Pending
+                    }
+                }
+                
                 processPromptTest(test);
                 test.Status__c = STATUS_COMPLETED;
+                testsProcessed++;
                 
             } catch (Exception e) {
                 System.debug(ERROR_PROCESSING_PROMPT_TEST + test.Id + ' - ' + e.getMessage());
@@ -200,18 +244,107 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             testsToUpdate.add(test);
         }
         
+        System.debug('Tests processed: ' + testsProcessed + ', Tests skipped: ' + testsSkipped);
+        System.debug('=== BATCH EXECUTION COMPLETE ===');
+        
         updateTestRecords(testsToUpdate);
     }
     
     /**
-     * @description Finish method called after all batches are processed
+     * @description Finish method called after all batches are processed - handles batch re-launching for dependencies
      * @param bc Database.BatchableContext
      */
     public void finish(Database.BatchableContext bc) {
-        updateBatchStatus();
+        System.debug('=== DEPENDENCY-AWARE BATCH FINISH ===');
+        System.debug('Execution count: ' + executionCount);
+        System.debug('Processing child tests: ' + processingChildTests);
         
-        // Check if quality assessment should be triggered
+        // Safety check to prevent infinite loops
+        if (executionCount >= MAX_EXECUTIONS) {
+            System.debug('Max execution limit reached (' + MAX_EXECUTIONS + '), stopping batch re-launches');
+            updateBatchStatus();
+            checkAndTriggerQualityAssessment();
+            return;
+        }
+        
+        if (!processingChildTests) {
+            // Just finished processing parent tests, check if child tests exist
+            List<Prompt_Test__c> pendingChildTests = [
+                SELECT Id FROM Prompt_Test__c 
+                WHERE Prompt_Test_Batch__c IN :batchIds
+                AND Status__c = :STATUS_PENDING
+                AND Related_Test__c != null
+                LIMIT 1
+            ];
+            
+            if (!pendingChildTests.isEmpty()) {
+                System.debug('Parent tests completed, launching child test processing phase');
+                
+                // Create new batch instance for child processing
+                ziip_PromptTestBatch childBatch = new ziip_PromptTestBatch(batchIds);
+                childBatch.processingChildTests = true;
+                childBatch.executionCount = this.executionCount;
+                
+                Database.executeBatch(childBatch);
+                return; // Don't update batch status yet, child batch will handle it
+            } else {
+                System.debug('No pending child tests found, processing complete');
+            }
+        } else {
+            // Just finished processing child tests, check if any are still pending
+            List<Prompt_Test__c> stillPendingChildTests = [
+                SELECT Id FROM Prompt_Test__c 
+                WHERE Prompt_Test_Batch__c IN :batchIds
+                AND Status__c = :STATUS_PENDING
+                AND Related_Test__c != null
+                LIMIT 1
+            ];
+            
+            if (!stillPendingChildTests.isEmpty()) {
+                System.debug('Some child tests still pending, re-launching child processing');
+                
+                // Re-launch child processing
+                ziip_PromptTestBatch retryBatch = new ziip_PromptTestBatch(batchIds);
+                retryBatch.processingChildTests = true;
+                retryBatch.executionCount = this.executionCount;
+                
+                Database.executeBatch(retryBatch);
+                return; // Don't update batch status yet
+            } else {
+                System.debug('All child tests completed, processing complete');
+            }
+        }
+        
+        System.debug('=== DEPENDENCY-AWARE BATCH FINISH COMPLETE ===');
+        
+        updateBatchStatus();
         checkAndTriggerQualityAssessment();
+    }
+    
+    /**
+     * @description Checks if parent test is ready (completed) for child test processing
+     * @param childTest Prompt_Test__c child test record
+     * @return Boolean indicating if parent is ready
+     */
+    private Boolean isParentReady(Prompt_Test__c childTest) {
+        if (childTest.Related_Test__c == null) {
+            return true; // This is a parent test, no dependency
+        }
+        
+        List<Prompt_Test__c> parents = [
+            SELECT Id, Status__c 
+            FROM Prompt_Test__c 
+            WHERE Id = :childTest.Related_Test__c 
+            LIMIT 1
+        ];
+        
+        Boolean parentReady = !parents.isEmpty() && parents[0].Status__c == STATUS_COMPLETED;
+        
+        if (!parentReady) {
+            System.debug('Parent test ' + childTest.Related_Test__c + ' not ready for child test ' + childTest.Id);
+        }
+        
+        return parentReady;
     }
     
     // ===========================================
@@ -785,10 +918,13 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
                 if (hasQualityTemplates) {
                     System.debug('Triggering quality assessment for batch: ' + batch.Id);
                     
-                    // Launch the quality metrics batch
-                    Database.executeBatch(new ziip_PromptMetricsBatch(
+                    // Create metrics batch with optimal batch size calculation
+                    ziip_PromptMetricsBatch metricsBatch = new ziip_PromptMetricsBatch(
                         new Set<Id>{batch.Id}
-                    ));
+                    );
+                    
+                    // Launch the quality metrics batch with calculated batch size
+                    Database.executeBatch(metricsBatch, metricsBatch.batchSize);
                 } else {
                     System.debug('Quality assessment enabled for batch ' + batch.Id + 
                                ' but no assessment templates configured');

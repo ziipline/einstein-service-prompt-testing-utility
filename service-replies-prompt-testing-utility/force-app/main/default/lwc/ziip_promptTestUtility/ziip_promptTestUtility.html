@@ -429,13 +429,29 @@
 
                     <!-- Template Table -->
                     <div class="slds-var-m-bottom_medium">
-                        <lightning-datatable
-                            key-field="Id"
-                            data={promptTemplates}
-                            columns={templateColumns}
-                            onrowaction={handleTemplateAction}
-                            is-loading={isLoadingTemplates}>
-                        </lightning-datatable>
+                        <div class="template-table-container">
+                            <!-- Loading Overlay -->
+                            <template if:true={isLoadingTemplates}>
+                                <div class="slds-is-relative">
+                                    <div class="slds-spinner_container">
+                                        <div class="slds-spinner slds-spinner_medium slds-spinner_brand" role="status">
+                                            <span class="slds-assistive-text">Loading templates...</span>
+                                            <div class="slds-spinner__dot-a"></div>
+                                            <div class="slds-spinner__dot-b"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <!-- Template Table -->
+                            <lightning-datatable
+                                key-field="Id"
+                                data={promptTemplates}
+                                columns={templateColumns}
+                                onrowaction={handleTemplateAction}
+                                is-loading={isLoadingTemplates}>
+                            </lightning-datatable>
+                        </div>
                     </div>
 
                     <!-- Template Pagination Controls -->
