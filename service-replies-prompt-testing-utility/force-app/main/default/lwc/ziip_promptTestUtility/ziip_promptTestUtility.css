@@ -36,3 +36,27 @@
     font-size: slds-text-body_regular;
     line-height: 1.4;
 }
+
+/* Template Table Loading Overlay */
+.template-table-container {
+    position: relative;
+}
+
+.template-table-container .slds-spinner_container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+}
+
+.template-table-container .slds-spinner {
+    width: 2rem;
+    height: 2rem;
+}
