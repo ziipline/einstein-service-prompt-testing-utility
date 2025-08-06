@@ -283,6 +283,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
         this.templateTypeFilter = event.target.value;
         // Automatically apply filter when template type changes
         this.templateCurrentPage = 1;
+        this.isLoadingTemplates = true; // Ensure loading state is set immediately
         this.loadTemplates();
     }
 
@@ -292,6 +293,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
 
     handleApplyTemplateFilters() {
         this.templateCurrentPage = 1;
+        this.isLoadingTemplates = true; // Ensure loading state is set immediately
         this.loadTemplates();
     }
 
@@ -300,6 +302,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
         this.templateTypeFilter = '';
         this.templateStatusFilter = '';
         this.templateCurrentPage = 1;
+        this.isLoadingTemplates = true; // Ensure loading state is set immediately
         this.loadTemplates();
     }
 
@@ -307,6 +310,7 @@ export default class Ziip_promptTestUtility extends LightningElement {
     handleTemplatePreviousPage() {
         if (this.templateHasPrevious) {
             this.templateCurrentPage--;
+            this.isLoadingTemplates = true; // Set loading state
             this.loadTemplates();
         }
     }
@@ -314,17 +318,20 @@ export default class Ziip_promptTestUtility extends LightningElement {
     handleTemplateNextPage() {
         if (this.templateHasNext) {
             this.templateCurrentPage++;
+            this.isLoadingTemplates = true; // Set loading state
             this.loadTemplates();
         }
     }
 
     handleTemplateFirstPage() {
         this.templateCurrentPage = 1;
+        this.isLoadingTemplates = true; // Set loading state
         this.loadTemplates();
     }
 
     handleTemplateLastPage() {
         this.templateCurrentPage = this.templateTotalPages;
+        this.isLoadingTemplates = true; // Set loading state
         this.loadTemplates();
     }
 

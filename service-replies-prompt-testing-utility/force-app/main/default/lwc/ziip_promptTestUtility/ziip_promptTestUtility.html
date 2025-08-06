@@ -429,16 +429,23 @@
 
                     <!-- Template Table -->
                     <div class="slds-var-m-bottom_medium">
-                        <div class="template-table-container">
-                            <!-- Loading Overlay -->
+                        <div class="template-table-container slds-is-relative">
+                            <!-- Enhanced Loading Overlay -->
                             <template if:true={isLoadingTemplates}>
-                                <div class="slds-is-relative">
-                                    <div class="slds-spinner_container">
-                                        <div class="slds-spinner slds-spinner_medium slds-spinner_brand" role="status">
-                                            <span class="slds-assistive-text">Loading templates...</span>
-                                            <div class="slds-spinner__dot-a"></div>
-                                            <div class="slds-spinner__dot-b"></div>
-                                        </div>
+                                <div class="slds-spinner_container slds-is-fixed loading-overlay">
+                                    <div class="slds-backdrop slds-backdrop_open"></div>
+                                    <div class="slds-spinner slds-spinner_large slds-spinner_brand" role="status">
+                                        <span class="slds-assistive-text">Loading templates...</span>
+                                        <div class="slds-spinner__dot-a"></div>
+                                        <div class="slds-spinner__dot-b"></div>
+                                    </div>
+                                    <div class="slds-var-m-top_medium slds-text-align_center">
+                                        <p class="slds-text-body_regular slds-text-color_inverse loading-message">
+                                            Loading templates...
+                                        </p>
+                                        <p class="slds-text-body_small slds-text-color_inverse-weak loading-submessage">
+                                            Please wait while we fetch the latest template data
+                                        </p>
                                     </div>
                                 </div>
                             </template>
