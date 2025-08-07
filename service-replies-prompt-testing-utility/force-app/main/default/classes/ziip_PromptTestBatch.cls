@@ -1,5 +1,6 @@
 /**
- * @description Batch class for processing Prompt Tests with Einstein AI templates
+ * @description Simplified batch class for processing Prompt Tests with Einstein AI templates
+ * Now uses utility classes for formatting, parsing, and debug logging
  * Supports multiple test types: Service Replies, Case Summary, Work Summary
  * @author Ziipline
  */
@@ -29,11 +30,10 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private static final String STATUS_FAILED = 'Failed';
     
     // ===========================================
-    // TEST TYPE CONSTANTS
+    // TEMPLATE TYPE CONSTANTS
     // ===========================================
-    private static final String TEST_TYPE_SERVICE_REPLIES = 'Service Replies';
-    private static final String TEST_TYPE_CASE_SUMMARY = 'Case Summary';
-    private static final String TEST_TYPE_WORK_SUMMARY = 'Work Summary';
+    private static final String TEMPLATE_TYPE_SERVICE_CONTEXTUAL = 'Service Reply - Contextual';
+    private static final String TEMPLATE_TYPE_SERVICE_GROUNDED = 'Service Reply - Grounded';
     
     // ===========================================
     // EINSTEIN AI INPUT PARAMETER CONSTANTS
@@ -43,32 +43,12 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private static final String INPUT_RETRIEVER_ID_OR_NAME = 'Input:RetrieverIdOrName';
     private static final String INPUT_SEARCH_QUERY = 'Input:search_query';
     private static final String INPUT_MESSAGING_SESSION = 'Input:MessagingSession';
-    private static final String INPUT_CASE = 'Input:Case';
     private static final String INPUT_VOICE_CALL = 'Input:VoiceCall';
-    
-    // ===========================================
-    // JSON RESPONSE FIELD CONSTANTS
-    // ===========================================
-    private static final String JSON_SEARCH_QUERY = 'search_query';
-    private static final String JSON_RECENT_SPEAKER = 'recent_speaker';
-    private static final String JSON_ISSUE_ADDRESSED = 'issue_addressed_by_agent';
-    private static final String JSON_RESPONSES = 'responses';
-    private static final String JSON_RESPONSE = 'response';
-    private static final String JSON_INTENT = 'intent';
-    private static final String JSON_ARTICLE_RELEVANT = 'article_relevant';
-    private static final String JSON_SNIPPET_IDENTIFIED = 'snippet_identified';
-    private static final String JSON_SOURCE = 'source';
-    private static final String JSON_SOURCE_RECORD_ID = 'sourceRecordId';
-    private static final String JSON_DATA_SOURCE_OBJECT = 'dataSourceObject';
-    private static final String JSON_SNIPPET_START = 'snippet_starting_word_num';
-    private static final String JSON_SNIPPET_END = 'snippet_ending_word_num';
     
     // ===========================================
     // PROCESSING CONFIGURATION CONSTANTS
     // ===========================================
     private static final Integer NUM_GENERATIONS = 1;
-    private static final Integer BATCH_SIZE_LIMIT = 200;
-    private static final Integer MAX_RETRY_ATTEMPTS = 3;
     private static final String APPLICATION_NAME = 'PromptTemplateGenerationsInvocable';
     private static final String DEFAULT_RETRIEVER_ID = '';
     private static final String INVALID_SEARCH_QUERY_VALUE = 'none';
@@ -76,21 +56,9 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private static final String RECORD_ID_KEY = 'id';
     
     // ===========================================
-    // TEMPLATE TYPE CONSTANTS
+    // JSON RESPONSE FIELD CONSTANTS
     // ===========================================
-    private static final String TEMPLATE_TYPE_SERVICE_CONTEXTUAL = 'Service Reply - Contextual';
-    private static final String TEMPLATE_TYPE_SERVICE_GROUNDED = 'Service Reply - Grounded';
-    private static final String TEMPLATE_TYPE_CASE_SUMMARY = 'Case Summary';
-    private static final String TEMPLATE_TYPE_WORK_SUMMARY = 'Work Summary';
-    
-    // ===========================================
-    // FORMATTING CONSTANTS
-    // ===========================================
-    private static final String NEWLINE = '\n';
-    private static final String DOUBLE_NEWLINE = '\n\n';
-    private static final String ERROR_PREFIX = 'Error: ';
-    private static final String RAW_RESULT_PREFIX = '\n\nRaw Result:\n';
-    private static final Integer RESPONSE_COUNTER_START = 1;
+    private static final String JSON_SEARCH_QUERY = 'search_query';
     
     // ===========================================
     // ERROR MESSAGE CONSTANTS
@@ -98,51 +66,13 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     private static final String ERROR_TEMPLATE_IDS_NOT_CONFIGURED = 'Template IDs not configured properly for this test type.';
     private static final String ERROR_BLANK_TEMPLATE_ID = 'Template ID cannot be blank';
     private static final String ERROR_NO_RESPONSE_GENERATED = 'No response generated from prompt template';
-    private static final String ERROR_NO_RESULT = 'No result returned from template';
-    private static final String ERROR_FORMATTING_RESULT = 'Error formatting result: ';
     private static final String ERROR_PROCESSING_PROMPT_TEST = 'Error processing Prompt_Test__c: ';
     private static final String ERROR_EXECUTING_PROMPT = 'Failed to execute Einstein prompt (Template ID: ';
     private static final String ERROR_GETTING_CONTEXT = 'Error getting context data: ';
     private static final String ERROR_PARSING_JSON = 'Error parsing result JSON: ';
     private static final String ERROR_UPDATING_RECORDS = 'Error updating test records: ';
     private static final String ERROR_UPDATING_BATCH_STATUS = 'Error updating batch status: ';
-    private static final String ERROR_UNSUPPORTED_TEST_TYPE = 'Unsupported test type: ';
-    
-    // ===========================================
-    // DEBUG CONSTANTS
-    // ===========================================
-    private static final String DEBUG_SEPARATOR = '='.repeat(50);
-    private static final String DEBUG_SECTION_SEPARATOR = '-'.repeat(30);
-    private static final String DEBUG_CONNECTAPI_START = 'CONNECTAPI DEBUG START';
-    private static final String DEBUG_CONNECTAPI_END = 'CONNECTAPI DEBUG END';
-    private static final String DEBUG_INPUT_PARAMS = 'INPUT PARAMETERS DEBUG';
-    private static final String DEBUG_NULL_VALUE = '[NULL]';
-    private static final String DEBUG_EMPTY_LIST = '[EMPTY LIST]';
-    private static final String DEBUG_LIST_SIZE_PREFIX = '[LIST SIZE: ';
-    private static final String DEBUG_LIST_SIZE_SUFFIX = ']';
-    
-    // ===========================================
-    // DISPLAY FORMATTING CONSTANTS
-    // ===========================================
-    private static final String CONTEXT_HEADER = 'CONTEXTUAL SERVICE REPLIES' + DOUBLE_NEWLINE;
-    private static final String GROUNDED_HEADER = 'GROUNDED SERVICE REPLIES' + DOUBLE_NEWLINE;
-    private static final String CASE_SUMMARY_HEADER = 'CASE SUMMARY' + DOUBLE_NEWLINE;
-    private static final String WORK_SUMMARY_HEADER = 'WORK SUMMARY' + DOUBLE_NEWLINE;
-    private static final String RESPONSES_SECTION = 'RESPONSES:' + NEWLINE + '----------' + NEWLINE;
-    private static final String SOURCE_INFO_SECTION = NEWLINE + 'Source Information:' + NEWLINE;
-    private static final String RESPONSE_DELIMITER = '-----------' + NEWLINE;
-    private static final String SEARCH_QUERY_LABEL = 'Search Query: ';
-    private static final String RECENT_SPEAKER_LABEL = 'Recent Speaker: ';
-    private static final String ISSUE_ADDRESSED_LABEL = 'Issue Addressed by Agent: ';
-    private static final String RESPONSE_PREFIX = 'RESPONSE ';
-    private static final String TEXT_LABEL = 'Text: ';
-    private static final String INTENT_LABEL = 'Intent: ';
-    private static final String ARTICLE_RELEVANT_LABEL = 'Article Relevant: ';
-    private static final String SNIPPET_IDENTIFIED_LABEL = 'Snippet Identified: ';
-    private static final String RECORD_ID_LABEL = '  - Record ID: ';
-    private static final String DATA_SOURCE_LABEL = '  - Data Source: ';
-    private static final String SNIPPET_RANGE_LABEL = '  - Snippet Range: Words ';
-    private static final String TO_SEPARATOR = ' to ';
+    private static final String ERROR_PREFIX = 'Error: ';
     
     private final Set<Id> batchIds;
     
@@ -455,41 +385,14 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     }
     
     /**
-     * @description Formats result based on template type
+     * @description Formats result based on template type using utility formatter
      * @param resultText Raw result text from template execution
      * @param templateType Template type for formatting logic
      * @return String formatted result
      */
     private String formatResult(String resultText, String templateType) {
-        switch on templateType {
-            when 'Service Reply - Contextual' {
-                return formatContextResult(resultText);
-            }
-            when 'Service Reply - Grounded' {
-                return formatGroundedResult(resultText);
-            }
-            when 'Case Summary' {
-                return formatGenericResult(resultText, CASE_SUMMARY_HEADER);
-            }
-            when 'Work Summary' {
-                return formatGenericResult(resultText, WORK_SUMMARY_HEADER);
-            }
-            when else {
-                return resultText;
-            }
-        }
+        return ziip_PromptResultFormatter.formatResult(resultText, templateType);
     }
-    
-    /**
-     * @description Gets the test type, providing backwards compatibility
-     * @param test Prompt_Test__c record
-     * @return String test type
-     */
-    private String getTestType(Prompt_Test__c test) {
-        String testType = test.Prompt_Test_Batch__r.Test_Type__c;
-        return String.isNotBlank(testType) ? testType : TEST_TYPE_SERVICE_REPLIES;
-    }
-    
     
     // ===========================================
     // CONTEXT EXTRACTION METHODS
@@ -650,14 +553,21 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             promptGenerationsInput.isPreview = false;
             
             // Debug input parameters before API call
-            debugInputParameters(templateId, templateType, promptGenerationsInput, contextData, searchQuery, retrieverId);
+            System.debug('=== EXECUTING TEMPLATE ===');
+            System.debug('Template ID: ' + templateId);
+            System.debug('Template Type: ' + templateType);
+            System.debug('Context Data Length: ' + (contextData != null ? contextData.length() : 0));
+            System.debug('Search Query: ' + searchQuery);
+            System.debug('Retriever ID: ' + retrieverId);
             
             // Call the service to generate messages
             ConnectApi.EinsteinPromptTemplateGenerationsRepresentation generationsOutput = 
                 ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate(templateId, promptGenerationsInput);
             
-            // Debug complete response after API call
-            debugConnectApiResponse(generationsOutput, templateId, templateType);
+            // Debug response
+            System.debug('=== API RESPONSE ===');
+            System.debug('Request ID: ' + (generationsOutput?.requestId));
+            System.debug('Generations Count: ' + (generationsOutput?.generations?.size()));
             
             // Extract the generated text, resolved prompt, and request ID
             if (generationsOutput != null && generationsOutput.generations != null && !generationsOutput.generations.isEmpty()) {
@@ -937,578 +847,4 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         }
     }
     
-    // ===========================================
-    // RESULT FORMATTING METHODS
-    // ===========================================
-    
-    /**
-     * @description Formats Service Replies results (contextual or grounded)
-     * @param rawResult Raw JSON result from template
-     * @param templateType Type of template ('contextual' or 'grounded')
-     * @return String formatted result
-     */
-    private String formatServiceRepliesResult(String rawResult, String templateType) {
-        if (templateType == 'contextual') {
-            return formatContextResult(rawResult);
-        } else if (templateType == 'grounded') {
-            return formatGroundedResult(rawResult);
-        }
-        return rawResult;
-    }
-    
-    /**
-     * @description Formats generic results for Case Summary and Work Summary
-     * @param rawResult Raw result from template
-     * @param header Header to prepend to result
-     * @return String formatted result
-     */
-    private String formatGenericResult(String rawResult, String header) {
-        if (String.isBlank(rawResult)) {
-            return ERROR_NO_RESULT;
-        }
-        return header + rawResult;
-    }
-    
-    /**
-     * @description Formats the context template result for display
-     * @param contextResult Raw JSON result from context template
-     * @return String formatted result
-     */
-    private String formatContextResult(String contextResult) {
-        try {
-            if (String.isBlank(contextResult)) {
-                return ERROR_NO_RESULT;
-            }
-            
-            Map<String, Object> resultMap = (Map<String, Object>) JSON.deserializeUntyped(contextResult);
-            String formatted = CONTEXT_HEADER;
-            
-            // Extract key fields using constants
-            if (resultMap.containsKey(JSON_SEARCH_QUERY)) {
-                formatted += SEARCH_QUERY_LABEL + String.valueOf(resultMap.get(JSON_SEARCH_QUERY)) + NEWLINE;
-            }
-            
-            if (resultMap.containsKey(JSON_RECENT_SPEAKER)) {
-                formatted += RECENT_SPEAKER_LABEL + String.valueOf(resultMap.get(JSON_RECENT_SPEAKER)) + NEWLINE;
-            }
-            
-            if (resultMap.containsKey(JSON_ISSUE_ADDRESSED)) {
-                formatted += ISSUE_ADDRESSED_LABEL + String.valueOf(resultMap.get(JSON_ISSUE_ADDRESSED)) + DOUBLE_NEWLINE;
-            }
-            
-            // Extract responses
-            if (resultMap.containsKey(JSON_RESPONSES) && resultMap.get(JSON_RESPONSES) instanceof List<Object>) {
-                List<Object> responses = (List<Object>) resultMap.get(JSON_RESPONSES);
-                formatted += RESPONSES_SECTION;
-                
-                Integer responseCount = RESPONSE_COUNTER_START;
-                for (Object responseObj : responses) {
-                    if (responseObj instanceof Map<String, Object>) {
-                        Map<String, Object> response = (Map<String, Object>) responseObj;
-                        formatted += responseCount + '. ';
-                        if (response.containsKey(JSON_RESPONSE)) {
-                            formatted += String.valueOf(response.get(JSON_RESPONSE));
-                        }
-                        formatted += DOUBLE_NEWLINE;
-                        responseCount++;
-                    }
-                }
-            }
-            
-            return formatted;
-            
-        } catch (Exception e) {
-            System.debug(ERROR_FORMATTING_RESULT + e.getMessage());
-            return ERROR_FORMATTING_RESULT + e.getMessage() + RAW_RESULT_PREFIX + contextResult;
-        }
-    }
-    
-    /**
-     * @description Formats the grounded template result for display
-     * @param groundedResult Raw JSON result from grounded template
-     * @return String formatted result
-     */
-    private String formatGroundedResult(String groundedResult) {
-        try {
-            if (String.isBlank(groundedResult)) {
-                return ERROR_NO_RESULT;
-            }
-            
-            // Check if this is a skip message (not JSON)
-            if (groundedResult.startsWith('Grounded template skipped:')) {
-                return GROUNDED_HEADER + groundedResult + DOUBLE_NEWLINE + 
-                       'Note: Grounded service replies require a valid search query from the contextual template. ' +
-                       'When the contextual template returns "none" or an empty search query, ' +
-                       'the grounded template cannot be executed as it would not have any content to search against.';
-            }
-            
-            String formatted = GROUNDED_HEADER;
-            
-            // Try to parse as List first (new grounded template structure)
-            try {
-                List<Object> responses = (List<Object>) JSON.deserializeUntyped(groundedResult);
-                return formatGroundedResponseList(responses, formatted);
-            } catch (Exception listEx) {
-                // If that fails, try the old Map structure
-                Map<String, Object> resultMap = (Map<String, Object>) JSON.deserializeUntyped(groundedResult);
-                return formatGroundedResponseMap(resultMap, formatted);
-            }
-            
-        } catch (Exception e) {
-            System.debug(ERROR_FORMATTING_RESULT + e.getMessage());
-            return ERROR_FORMATTING_RESULT + e.getMessage() + RAW_RESULT_PREFIX + groundedResult;
-        }
-    }
-    
-    /**
-     * @description Formats grounded results when response is a direct List
-     * @param responses List of response objects
-     * @param formatted Existing formatted string
-     * @return String formatted result
-     */
-    private String formatGroundedResponseList(List<Object> responses, String formatted) {
-        if (responses != null && !responses.isEmpty()) {
-            Integer responseCount = RESPONSE_COUNTER_START;
-            for (Object responseObj : responses) {
-                if (responseObj instanceof Map<String, Object>) {
-                    Map<String, Object> response = (Map<String, Object>) responseObj;
-                    
-                    formatted += RESPONSE_PREFIX + responseCount + ':' + NEWLINE;
-                    formatted += RESPONSE_DELIMITER;
-                    
-                    // Extract the main result text
-                    if (response.containsKey('result')) {
-                        formatted += TEXT_LABEL + String.valueOf(response.get('result')) + NEWLINE;
-                    }
-                    
-                    // Extract source information
-                    formatted += SOURCE_INFO_SECTION;
-                    
-                    if (response.containsKey('sourceObjectName')) {
-                        formatted += DATA_SOURCE_LABEL + String.valueOf(response.get('sourceObjectName')) + NEWLINE;
-                    }
-                    
-                    if (response.containsKey('fieldApiKey')) {
-                        formatted += '  - Field: ' + String.valueOf(response.get('fieldApiKey')) + NEWLINE;
-                    }
-                    
-                    // Extract scores
-                    if (response.containsKey('score')) {
-                        formatted += '  - Relevance Score: ' + String.valueOf(response.get('score')) + NEWLINE;
-                    }
-                    
-                    if (response.containsKey('vectorSearchScore')) {
-                        formatted += '  - Vector Search Score: ' + String.valueOf(response.get('vectorSearchScore')) + NEWLINE;
-                    }
-                    
-                    if (response.containsKey('keywordSearchScore')) {
-                        formatted += '  - Keyword Search Score: ' + String.valueOf(response.get('keywordSearchScore')) + NEWLINE;
-                    }
-                    
-                    // Check if there's a nested result array (second structure type)
-                    if (response.containsKey('result') && response.get('result') instanceof List<Object>) {
-                        List<Object> nestedResults = (List<Object>) response.get('result');
-                        for (Object nestedObj : nestedResults) {
-                            if (nestedObj instanceof Map<String, Object>) {
-                                Map<String, Object> nestedResult = (Map<String, Object>) nestedObj;
-                                if (nestedResult.containsKey('value')) {
-                                    formatted += '  - Source Content: ' + String.valueOf(nestedResult.get('value')) + NEWLINE;
-                                }
-                                if (nestedResult.containsKey('fieldName')) {
-                                    formatted += '  - Field Name: ' + String.valueOf(nestedResult.get('fieldName')) + NEWLINE;
-                                }
-                            }
-                        }
-                    }
-                    
-                    formatted += NEWLINE;
-                    responseCount++;
-                }
-            }
-        }
-        return formatted;
-    }
-    
-    /**
-     * @description Formats grounded results when response is a Map (old structure)
-     * @param resultMap Map containing responses
-     * @param formatted Existing formatted string
-     * @return String formatted result
-     */
-    private String formatGroundedResponseMap(Map<String, Object> resultMap, String formatted) {
-        // Extract responses using constants (old structure)
-        if (resultMap.containsKey(JSON_RESPONSES) && resultMap.get(JSON_RESPONSES) instanceof List<Object>) {
-            List<Object> responses = (List<Object>) resultMap.get(JSON_RESPONSES);
-            
-            Integer responseCount = RESPONSE_COUNTER_START;
-            for (Object responseObj : responses) {
-                if (responseObj instanceof Map<String, Object>) {
-                    Map<String, Object> response = (Map<String, Object>) responseObj;
-                    
-                    formatted += RESPONSE_PREFIX + responseCount + ':' + NEWLINE;
-                    formatted += RESPONSE_DELIMITER;
-                    
-                    if (response.containsKey(JSON_RESPONSE)) {
-                        formatted += TEXT_LABEL + String.valueOf(response.get(JSON_RESPONSE)) + NEWLINE;
-                    }
-                    
-                    if (response.containsKey(JSON_INTENT)) {
-                        formatted += INTENT_LABEL + String.valueOf(response.get(JSON_INTENT)) + NEWLINE;
-                    }
-                    
-                    if (response.containsKey(JSON_ARTICLE_RELEVANT)) {
-                        formatted += ARTICLE_RELEVANT_LABEL + String.valueOf(response.get(JSON_ARTICLE_RELEVANT)) + NEWLINE;
-                    }
-                    
-                    if (response.containsKey(JSON_SNIPPET_IDENTIFIED)) {
-                        formatted += SNIPPET_IDENTIFIED_LABEL + String.valueOf(response.get(JSON_SNIPPET_IDENTIFIED)) + NEWLINE;
-                    }
-                    
-                    // Extract source information using constants
-                    if (response.containsKey(JSON_SOURCE) && response.get(JSON_SOURCE) instanceof Map<String, Object>) {
-                        Map<String, Object> source = (Map<String, Object>) response.get(JSON_SOURCE);
-                        formatted += SOURCE_INFO_SECTION;
-                        
-                        if (source.containsKey(JSON_SOURCE_RECORD_ID)) {
-                            formatted += RECORD_ID_LABEL + String.valueOf(source.get(JSON_SOURCE_RECORD_ID)) + NEWLINE;
-                        }
-                        
-                        if (source.containsKey(JSON_DATA_SOURCE_OBJECT)) {
-                            formatted += DATA_SOURCE_LABEL + String.valueOf(source.get(JSON_DATA_SOURCE_OBJECT)) + NEWLINE;
-                        }
-                        
-                        if (source.containsKey(JSON_SNIPPET_START) && source.containsKey(JSON_SNIPPET_END)) {
-                            formatted += SNIPPET_RANGE_LABEL;
-                            formatted += String.valueOf(source.get(JSON_SNIPPET_START));
-                            formatted += TO_SEPARATOR;
-                            formatted += String.valueOf(source.get(JSON_SNIPPET_END));
-                            formatted += NEWLINE;
-                        }
-                    }
-                    
-                    formatted += NEWLINE;
-                    responseCount++;
-                }
-            }
-        }
-        return formatted;
-    }
-    
-    // ===========================================
-    // DEBUG METHODS
-    // ===========================================
-    
-    /**
-     * @description Logs input parameters before calling ConnectApi
-     * @param templateId Template ID being called
-     * @param templateType Type of template
-     * @param promptInput Input parameters object
-     * @param contextData Context data being sent
-     * @param searchQuery Search query (if applicable)
-     * @param retrieverId Retriever ID (if applicable)
-     */
-    private void debugInputParameters(String templateId, String templateType, ConnectApi.EinsteinPromptTemplateGenerationsInput promptInput, String contextData, String searchQuery, String retrieverId) {
-        System.debug(DEBUG_SEPARATOR);
-        System.debug(DEBUG_INPUT_PARAMS);
-        System.debug(DEBUG_SEPARATOR);
-        System.debug('Template ID: ' + (templateId ?? DEBUG_NULL_VALUE));
-        System.debug('Template Type: ' + (templateType ?? DEBUG_NULL_VALUE));
-        System.debug('Timestamp: ' + System.now());
-        System.debug(DEBUG_SECTION_SEPARATOR);
-        
-        // Log additional configuration
-        if (promptInput.additionalConfig != null) {
-            System.debug('Additional Config:');
-            System.debug('  - Number of Generations: ' + promptInput.additionalConfig.numGenerations);
-            System.debug('  - Enable PII Masking: ' + promptInput.additionalConfig.enablePiiMasking);
-            System.debug('  - Application Name: ' + (promptInput.additionalConfig.applicationName ?? DEBUG_NULL_VALUE));
-        }
-        System.debug('Is Preview: ' + promptInput.isPreview);
-        System.debug(DEBUG_SECTION_SEPARATOR);
-        
-        // Log input parameters
-        System.debug('Input Parameters:');
-        if (promptInput.inputParams != null && !promptInput.inputParams.isEmpty()) {
-            for (String key : promptInput.inputParams.keySet()) {
-                ConnectApi.WrappedValue wrappedValue = promptInput.inputParams.get(key);
-                if (wrappedValue != null && wrappedValue.value != null) {
-                    System.debug('  - ' + key + ': ' + JSON.serializePretty(wrappedValue.value));
-                } else {
-                    System.debug('  - ' + key + ': ' + DEBUG_NULL_VALUE);
-                }
-            }
-        } else {
-            System.debug('  ' + DEBUG_EMPTY_LIST);
-        }
-        
-        System.debug(DEBUG_SECTION_SEPARATOR);
-        System.debug('Context Data Length: ' + (contextData != null ? String.valueOf(contextData.length()) : '0'));
-        System.debug('Search Query: ' + (searchQuery ?? DEBUG_NULL_VALUE));
-        System.debug('Retriever ID: ' + (retrieverId ?? DEBUG_NULL_VALUE));
-        System.debug(DEBUG_SEPARATOR);
-    }
-    
-    /**
-     * @description Logs complete ConnectApi response with all available attributes
-     * @param generationsOutput Response from ConnectApi call
-     * @param templateId Template ID that was called
-     * @param templateType Type of template that was called
-     */
-    private void debugConnectApiResponse(ConnectApi.EinsteinPromptTemplateGenerationsRepresentation generationsOutput, String templateId, String templateType) {
-        System.debug(DEBUG_SEPARATOR);
-        System.debug(DEBUG_CONNECTAPI_START);
-        System.debug(DEBUG_SEPARATOR);
-        System.debug('Template ID: ' + (templateId ?? DEBUG_NULL_VALUE));
-        System.debug('Template Type: ' + (templateType ?? DEBUG_NULL_VALUE));
-        System.debug('Response Timestamp: ' + System.now());
-        System.debug(DEBUG_SECTION_SEPARATOR);
-        
-        if (generationsOutput == null) {
-            System.debug('ERROR: generationsOutput is null');
-            System.debug(DEBUG_SEPARATOR);
-            return;
-        }
-        
-        // Core response properties
-        debugCoreProperties(generationsOutput);
-        
-        // Parameters
-        debugParameters(generationsOutput.parameters);
-        
-        // Messages
-        debugRequestMessages(generationsOutput.requestMessages);
-        debugResponseMessages(generationsOutput.responseMessages);
-        debugSlotsMaskingInformation(generationsOutput.slotsMaskingInformation);
-        
-        // Generations and errors
-        debugGenerations(generationsOutput.generations);
-        debugGenerationErrors(generationsOutput.generationErrors);
-        
-        // Citations
-        debugCitations(generationsOutput.citations);
-        
-        // Note: fileData property not available until API version 63.0
-        
-        System.debug(DEBUG_SEPARATOR);
-        System.debug(DEBUG_CONNECTAPI_END);
-        System.debug(DEBUG_SEPARATOR);
-    }
-    
-    /**
-     * @description Debugs core properties of the response
-     * @param generationsOutput Response object
-     */
-    private void debugCoreProperties(ConnectApi.EinsteinPromptTemplateGenerationsRepresentation generationsOutput) {
-        System.debug('CORE PROPERTIES:');
-        System.debug('Request ID: ' + (generationsOutput.requestId ?? DEBUG_NULL_VALUE));
-        System.debug('Prompt Template Dev Name: ' + (generationsOutput.promptTemplateDevName ?? DEBUG_NULL_VALUE));
-        System.debug('Is Summarized: ' + (generationsOutput.isSummarized != null ? String.valueOf(generationsOutput.isSummarized) : DEBUG_NULL_VALUE));
-        
-        if (String.isNotBlank(generationsOutput.prompt)) {
-            System.debug('Resolved Prompt Length: ' + generationsOutput.prompt.length());
-            System.debug('Resolved Prompt: ' + generationsOutput.prompt);
-        } else {
-            System.debug('Resolved Prompt: ' + DEBUG_NULL_VALUE);
-        }
-        System.debug(DEBUG_SECTION_SEPARATOR);
-    }
-    
-    /**
-     * @description Debugs parameters object
-     * @param parameters Parameters object
-     */
-    private void debugParameters(ConnectApi.WrappedMapObject parameters) {
-        System.debug('PARAMETERS:');
-        if (parameters != null) {
-            try {
-                String parametersJson = JSON.serializePretty(parameters);
-                System.debug(parametersJson);
-            } catch (Exception e) {
-                System.debug('Error serializing parameters: ' + e.getMessage());
-            }
-        } else {
-            System.debug(DEBUG_NULL_VALUE);
-        }
-        System.debug(DEBUG_SECTION_SEPARATOR);
-    }
-    
-    /**
-     * @description Debugs request messages
-     * @param requestMessages List of request messages
-     */
-    private void debugRequestMessages(Object requestMessages) {
-        System.debug('REQUEST MESSAGES:');
-        if (requestMessages != null) {
-            try {
-                String messageJson = JSON.serializePretty(requestMessages);
-                System.debug(messageJson);
-            } catch (Exception e) {
-                System.debug('Error serializing request messages: ' + e.getMessage());
-                System.debug('Request Messages (toString): ' + String.valueOf(requestMessages));
-            }
-        } else {
-            System.debug(DEBUG_NULL_VALUE);
-        }
-        System.debug(DEBUG_SECTION_SEPARATOR);
-    }
-    
-    /**
-     * @description Debugs response messages
-     * @param responseMessages List of response messages
-     */
-    private void debugResponseMessages(Object responseMessages) {
-        System.debug('RESPONSE MESSAGES:');
-        if (responseMessages != null) {
-            try {
-                String messageJson = JSON.serializePretty(responseMessages);
-                System.debug(messageJson);
-            } catch (Exception e) {
-                System.debug('Error serializing response messages: ' + e.getMessage());
-                System.debug('Response Messages (toString): ' + String.valueOf(responseMessages));
-            }
-        } else {
-            System.debug(DEBUG_NULL_VALUE);
-        }
-        System.debug(DEBUG_SECTION_SEPARATOR);
-    }
-    
-    /**
-     * @description Debugs slots masking information
-     * @param slotsMaskingInfo List of masking information
-     */
-    private void debugSlotsMaskingInformation(Object slotsMaskingInfo) {
-        System.debug('SLOTS MASKING INFORMATION:');
-        if (slotsMaskingInfo != null) {
-            try {
-                String maskDataJson = JSON.serializePretty(slotsMaskingInfo);
-                System.debug(maskDataJson);
-            } catch (Exception e) {
-                System.debug('Error serializing slots masking information: ' + e.getMessage());
-                System.debug('Slots Masking Info (toString): ' + String.valueOf(slotsMaskingInfo));
-            }
-        } else {
-            System.debug(DEBUG_NULL_VALUE);
-        }
-        System.debug(DEBUG_SECTION_SEPARATOR);
-    }
-    
-    /**
-     * @description Debugs generations list
-     * @param generations List of generation items
-     */
-    private void debugGenerations(List<ConnectApi.EinsteinLlmGenerationItemOutput> generations) {
-        System.debug('GENERATIONS:');
-        if (generations != null && !generations.isEmpty()) {
-            System.debug(DEBUG_LIST_SIZE_PREFIX + generations.size() + DEBUG_LIST_SIZE_SUFFIX);
-            for (Integer i = 0; i < generations.size(); i++) {
-                ConnectApi.EinsteinLlmGenerationItemOutput generation = generations[i];
-                System.debug('Generation ' + (i + 1) + ':');
-                if (generation != null) {
-                    System.debug('  Text Length: ' + (generation.text != null ? String.valueOf(generation.text.length()) : '0'));
-                    System.debug('  Text: ' + (generation.text ?? DEBUG_NULL_VALUE));
-                    
-                    // Parameters (if available)
-                    if (generation.parameters != null) {
-                        try {
-                            String parametersJson = JSON.serializePretty(generation.parameters);
-                            System.debug('  Parameters: ' + parametersJson);
-                        } catch (Exception e) {
-                            System.debug('  Parameters: Error serializing - ' + e.getMessage());
-                        }
-                    } else {
-                        System.debug('  Parameters: ' + DEBUG_NULL_VALUE);
-                    }
-                    
-                    // Try to serialize the entire generation object to see all available properties
-                    try {
-                        String fullGenerationJson = JSON.serializePretty(generation);
-                        System.debug('  Full Generation Object: ' + fullGenerationJson);
-                    } catch (Exception e) {
-                        System.debug('  Full Generation Object: Error serializing - ' + e.getMessage());
-                        System.debug('  Generation toString: ' + String.valueOf(generation));
-                    }
-                } else {
-                    System.debug('  ' + DEBUG_NULL_VALUE);
-                }
-            }
-        } else {
-            System.debug(generations == null ? DEBUG_NULL_VALUE : DEBUG_EMPTY_LIST);
-        }
-        System.debug(DEBUG_SECTION_SEPARATOR);
-    }
-    
-    /**
-     * @description Debugs generation errors
-     * @param generationErrors List of generation errors
-     */
-    private void debugGenerationErrors(List<ConnectApi.EinsteinPromptTemplateGenerationsError> generationErrors) {
-        System.debug('GENERATION ERRORS:');
-        if (generationErrors != null && !generationErrors.isEmpty()) {
-            System.debug(DEBUG_LIST_SIZE_PREFIX + generationErrors.size() + DEBUG_LIST_SIZE_SUFFIX);
-            for (Integer i = 0; i < generationErrors.size(); i++) {
-                ConnectApi.EinsteinPromptTemplateGenerationsError error = generationErrors[i];
-                System.debug('Error ' + (i + 1) + ':');
-                if (error != null) {
-                    try {
-                        String errorJson = JSON.serializePretty(error);
-                        System.debug(errorJson);
-                    } catch (Exception e) {
-                        System.debug('  Error serializing generation error: ' + e.getMessage());
-                    }
-                } else {
-                    System.debug('  ' + DEBUG_NULL_VALUE);
-                }
-            }
-        } else {
-            System.debug(generationErrors == null ? DEBUG_NULL_VALUE : DEBUG_EMPTY_LIST);
-        }
-        System.debug(DEBUG_SECTION_SEPARATOR);
-    }
-    
-    /**
-     * @description Debugs citations
-     * @param citations Citations object
-     */
-    private void debugCitations(ConnectApi.EinsteinLlmGenerationCitationOutput citations) {
-        System.debug('CITATIONS:');
-        if (citations != null) {
-            try {
-                String citationsJson = JSON.serializePretty(citations);
-                System.debug(citationsJson);
-            } catch (Exception e) {
-                System.debug('Error serializing citations: ' + e.getMessage());
-            }
-        } else {
-            System.debug(DEBUG_NULL_VALUE);
-        }
-        System.debug(DEBUG_SECTION_SEPARATOR);
-    }
-    
-    /**
-     * @description Debugs file data
-     * @param fileData List of file data
-     */
-    private void debugFileData(List<ConnectApi.EinsteinPromptTemplateAttachment> fileData) {
-        System.debug('FILE DATA:');
-        if (fileData != null && !fileData.isEmpty()) {
-            System.debug(DEBUG_LIST_SIZE_PREFIX + fileData.size() + DEBUG_LIST_SIZE_SUFFIX);
-            for (Integer i = 0; i < fileData.size(); i++) {
-                ConnectApi.EinsteinPromptTemplateAttachment attachment = fileData[i];
-                System.debug('File ' + (i + 1) + ':');
-                if (attachment != null) {
-                    try {
-                        String attachmentJson = JSON.serializePretty(attachment);
-                        System.debug(attachmentJson);
-                    } catch (Exception e) {
-                        System.debug('  Error serializing file attachment: ' + e.getMessage());
-                    }
-                } else {
-                    System.debug('  ' + DEBUG_NULL_VALUE);
-                }
-            }
-        } else {
-            System.debug(fileData == null ? DEBUG_NULL_VALUE : DEBUG_EMPTY_LIST);
-        }
-        System.debug(DEBUG_SECTION_SEPARATOR);
-    }
 }

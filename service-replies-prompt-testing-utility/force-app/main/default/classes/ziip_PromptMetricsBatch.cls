@@ -1,22 +1,45 @@
+/**
+ * @description Simplified batch class for processing RAGAS quality metrics
+ * Now uses utility classes for response parsing and logging
+ * @author Ziipline
+ */
 public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Database.AllowsCallouts, Database.Stateful {
     
     private Set<Id> batchIds;
     public Integer batchSize;
     
-    // Template types for RAGAS evaluation
+    // ===========================================
+    // TEMPLATE TYPE CONSTANTS
+    // ===========================================
     private static final String TEMPLATE_TYPE_FAITHFULNESS = 'RAGAS Faithfulness';
     private static final String TEMPLATE_TYPE_RELEVANCY = 'RAGAS Relevancy';
     private static final String TEMPLATE_TYPE_CONTEXT_QUALITY = 'RAGAS Context Quality';
     
-    // Einstein AI configuration constants
+    // ===========================================
+    // EINSTEIN AI CONFIGURATION CONSTANTS
+    // ===========================================
     private static final String APPLICATION_NAME = 'PromptTemplateGenerationsInvocable';
     private static final Integer NUM_GENERATIONS = 1;
     
-    // Governor limit constants for batch sizing
+    // ===========================================
+    // GOVERNOR LIMIT CONSTANTS
+    // ===========================================
     private static final Integer MAX_CALLOUTS_PER_TRANSACTION = 100;
     private static final Integer DEFAULT_BATCH_SIZE = 200;
-    private static final Integer CALLOUT_SAFETY_BUFFER = 10; // Leave buffer for other operations
-    private static final Integer MAX_CALLOUTS_PER_RECORD = 3; // Faithfulness + Relevancy + Context Quality
+    private static final Integer CALLOUT_SAFETY_BUFFER = 10;
+    private static final Integer MAX_CALLOUTS_PER_RECORD = 3;
+    
+    // ===========================================
+    // INPUT PARAMETER CONSTANTS
+    // ===========================================
+    private static final String INPUT_ORIGINAL_CONTEXT = 'Input:original_context';
+    private static final String INPUT_AI_RESPONSE = 'Input:ai_response';
+    private static final String INPUT_ORIGINAL_QUESTION = 'Input:original_question';
+    private static final String INPUT_USER_QUESTION = 'Input:user_question';
+    private static final String INPUT_AVAILABLE_CONTEXT = 'Input:available_context';
+    private static final String INPUT_SEARCH_QUERY = 'Input:search_query';
+    private static final String INPUT_RETRIEVED_CONTEXT = 'Input:retrieved_context';
+    private static final String INPUT_KNOWLEDGE_BASE_INFO = 'Input:knowledge_base_info';
     
     // Constructor with default batch size
     public ziip_PromptMetricsBatch(Set<Id> batchIds) {
@@ -474,185 +497,14 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
         }
     }
     
+    /**
+     * @description Parses template response using utility parser
+     * @param generatedText Raw response text from Einstein API
+     * @param templateId Template ID for context
+     * @return Map<String, Object> parsed response data
+     */
     private Map<String, Object> parseTemplateResponse(String generatedText, String templateId) {
-        System.debug('=== PARSING TEMPLATE RESPONSE ===');
-        System.debug('Template ID: ' + templateId);
-        System.debug('Generated Text: ' + generatedText);
-        
-        if (String.isBlank(generatedText)) {
-            System.debug('ERROR: Generated text is null or empty');
-            return new Map<String, Object>{
-                'error' => 'Generated text is null or empty',
-                'score' => 0,
-                'raw_response' => generatedText
-            };
-        }
-        
-        // Try JSON parsing first (direct JSON)
-        try {
-            Map<String, Object> jsonResult = (Map<String, Object>) JSON.deserializeUntyped(generatedText);
-            System.debug('Successfully parsed as direct JSON: ' + JSON.serialize(jsonResult));
-            return jsonResult;
-        } catch (Exception jsonE) {
-            System.debug('Direct JSON parsing failed: ' + jsonE.getMessage());
-        }
-        
-        // Try to extract JSON from markdown code blocks
-        String extractedJson = extractJsonFromMarkdown(generatedText);
-        if (String.isNotBlank(extractedJson)) {
-            try {
-                Map<String, Object> jsonResult = (Map<String, Object>) JSON.deserializeUntyped(extractedJson);
-                System.debug('Successfully parsed JSON from markdown: ' + JSON.serialize(jsonResult));
-                return jsonResult;
-            } catch (Exception jsonE) {
-                System.debug('Markdown JSON parsing failed: ' + jsonE.getMessage());
-            }
-        }
-        
-        // Try to extract score from plain text responses
-        Map<String, Object> textResult = extractScoreFromText(generatedText, templateId);
-        System.debug('Text extraction result: ' + JSON.serialize(textResult));
-        
-        return textResult;
-    }
-    
-    private String extractJsonFromMarkdown(String text) {
-        if (String.isBlank(text)) {
-            return null;
-        }
-        
-        // Look for JSON code blocks (```json ... ```)
-        String lowerText = text.toLowerCase();
-        Integer jsonStart = lowerText.indexOf('```json');
-        if (jsonStart >= 0) {
-            // Find the start of the actual JSON content
-            Integer contentStart = text.indexOf('\n', jsonStart);
-            if (contentStart >= 0) {
-                contentStart++; // Move past the newline
-                
-                // Find the end of the code block
-                Integer contentEnd = text.indexOf('```', contentStart);
-                if (contentEnd >= 0) {
-                    String jsonContent = text.substring(contentStart, contentEnd).trim();
-                    System.debug('Extracted JSON from markdown: ' + jsonContent);
-                    return jsonContent;
-                }
-            }
-        }
-        
-        // Look for generic code blocks (``` ... ```) that might contain JSON
-        Integer codeStart = text.indexOf('```');
-        if (codeStart >= 0) {
-            Integer contentStart = text.indexOf('\n', codeStart);
-            if (contentStart >= 0) {
-                contentStart++; // Move past the newline
-                
-                Integer contentEnd = text.indexOf('```', contentStart);
-                if (contentEnd >= 0) {
-                    String codeContent = text.substring(contentStart, contentEnd).trim();
-                    // Check if this looks like JSON (starts with { and ends with })
-                    if (codeContent.startsWith('{') && codeContent.endsWith('}')) {
-                        System.debug('Extracted JSON from generic code block: ' + codeContent);
-                        return codeContent;
-                    }
-                }
-            }
-        }
-        
-        return null;
-    }
-    
-    private Map<String, Object> extractScoreFromText(String text, String templateId) {
-        Map<String, Object> result = new Map<String, Object>{
-            'raw_response' => text,
-            'parsing_method' => 'text_extraction'
-        };
-        
-        // Use simpler string matching approach instead of regex
-        String lowerText = text.toLowerCase();
-        Decimal extractedScore = null;
-        String extractionMethod = null;
-        
-        // Look for score keywords followed by numbers
-        List<String> scoreKeywords = new List<String>{'score:', 'score', 'rating:', 'rating', 'faithfulness:', 'faithfulness', 'relevancy:', 'relevancy', 'relevance:', 'relevance'};
-        
-        for (String keyword : scoreKeywords) {
-            Integer keywordIndex = lowerText.indexOf(keyword);
-            if (keywordIndex >= 0) {
-                // Look for numbers after the keyword
-                String afterKeyword = text.substring(keywordIndex + keyword.length());
-                Decimal score = extractFirstNumber(afterKeyword);
-                if (score != null) {
-                    extractedScore = score;
-                    extractionMethod = 'keyword: ' + keyword;
-                    System.debug('Extracted score using keyword "' + keyword + '": ' + score);
-                    break;
-                }
-            }
-        }
-        
-        // If no keyword match, look for any decimal number in the text
-        if (extractedScore == null) {
-            extractedScore = extractFirstNumber(text);
-            if (extractedScore != null) {
-                extractionMethod = 'first_number';
-                System.debug('Extracted first number from text: ' + extractedScore);
-            }
-        }
-        
-        // Set the score and field name
-        String scoreField = determineScoreField(templateId);
-        if (extractedScore != null) {
-            result.put(scoreField, extractedScore);
-            result.put('extraction_method', extractionMethod);
-        } else {
-            result.put(scoreField, 0);
-            result.put('error', 'No score found in response');
-            System.debug('No score found in text: ' + text);
-        }
-        
-        return result;
-    }
-    
-    private Decimal extractFirstNumber(String text) {
-        if (String.isBlank(text)) {
-            return null;
-        }
-        
-        // Clean the text and look for decimal numbers
-        String cleanText = text.replaceAll('[^0-9.]', ' ');
-        List<String> parts = cleanText.split('\\s+');
-        
-        for (String part : parts) {
-            if (String.isNotBlank(part) && (part.contains('.') || part.isNumeric())) {
-                try {
-                    Decimal num = Decimal.valueOf(part);
-                    // Updated validation - score should be in 0-100 range as per RAGAS template specs
-                    if (num >= 0 && num <= 100) {
-                        return num;
-                    }
-                } catch (Exception e) {
-                    continue;
-                }
-            }
-        }
-        
-        return null;
-    }
-    
-    private String determineScoreField(String templateId) {
-        // This is a simple heuristic - in practice, you might want to store this mapping
-        if (templateId != null) {
-            String templateIdLower = templateId.toLowerCase();
-            if (templateIdLower.contains('faithfulness')) {
-                return 'faithfulness_score';
-            } else if (templateIdLower.contains('relevancy') || templateIdLower.contains('relevance')) {
-                return 'relevancy_score';
-            } else if (templateIdLower.contains('context')) {
-                return 'context_quality_score';
-            }
-        }
-        return 'score'; // Default field name
+        return ziip_EinsteinResponseParser.parseTemplateResponse(generatedText, templateId);
     }
     
     private Map<String, Object> createErrorResponse(String errorMessage, String templateId, Map<String, Object> inputParams) {

@@ -2,7 +2,10 @@
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <!-- Apex Classes -->
     <types>
+        <members>ziip_BatchProcessingLogger</members>
+        <members>ziip_EinsteinResponseParser</members>
         <members>ziip_PromptMetricsBatch</members>
+        <members>ziip_PromptResultFormatter</members>
         <members>ziip_PromptTestBatch</members>
         <members>ziip_PromptTestUtil_Controller</members>
         <name>ApexClass</name>
