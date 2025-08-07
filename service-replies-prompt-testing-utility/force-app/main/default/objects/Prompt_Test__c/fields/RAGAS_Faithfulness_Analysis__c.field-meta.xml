@@ -2,9 +2,8 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>RAGAS_Faithfulness_Analysis__c</fullName>
     <description>Stores detailed JSON analysis from RAGAS faithfulness evaluation including reasoning, hallucinated elements, and grounded elements</description>
-    <externalId>false</externalId>
     <label>RAGAS Faithfulness Analysis</label>
-    <length>32768</length>
+    <length>131072</length>
     <trackTrending>false</trackTrending>
     <type>LongTextArea</type>
     <visibleLines>5</visibleLines>
