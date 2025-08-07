@@ -427,39 +427,31 @@
                         </p>
                     </div>
 
+                    <!-- Template Loading Spinner -->
+                    <template if:true={isLoadingTemplates}>
+                        <div class="slds-var-m-bottom_medium slds-text-align_center">
+                            <lightning-spinner 
+                                alternative-text="Loading templates..." 
+                                size="large">
+                            </lightning-spinner>
+                            <div class="slds-var-m-top_small">
+                                <p class="slds-text-body_regular">Loading templates...</p>
+                                <p class="slds-text-body_small slds-text-color_weak">Please wait while we fetch the latest template data.</p>
+                            </div>
+                        </div>
+                    </template>
+
                     <!-- Template Table -->
-                    <div class="slds-var-m-bottom_medium">
-                        <div class="template-table-container slds-is-relative">
-                            <!-- Enhanced Loading Overlay -->
-                            <template if:true={isLoadingTemplates}>
-                                <div class="slds-spinner_container slds-is-fixed loading-overlay">
-                                    <div class="slds-backdrop slds-backdrop_open"></div>
-                                    <div class="slds-spinner slds-spinner_large slds-spinner_brand" role="status">
-                                        <span class="slds-assistive-text">Loading templates...</span>
-                                        <div class="slds-spinner__dot-a"></div>
-                                        <div class="slds-spinner__dot-b"></div>
-                                    </div>
-                                    <div class="slds-var-m-top_medium slds-text-align_center">
-                                        <p class="slds-text-body_regular slds-text-color_inverse loading-message">
-                                            Loading templates...
-                                        </p>
-                                        <p class="slds-text-body_small slds-text-color_inverse-weak loading-submessage">
-                                            Please wait while we fetch the latest template data
-                                        </p>
-                                    </div>
-                                </div>
-                            </template>
-                            
-                            <!-- Template Table -->
+                    <template if:false={isLoadingTemplates}>
+                        <div class="slds-var-m-bottom_medium">
                             <lightning-datatable
                                 key-field="Id"
                                 data={promptTemplates}
                                 columns={templateColumns}
-                                onrowaction={handleTemplateAction}
-                                is-loading={isLoadingTemplates}>
+                                onrowaction={handleTemplateAction}>
                             </lightning-datatable>
                         </div>
-                    </div>
+                    </template>
 
                     <!-- Template Pagination Controls -->
                     <div class="slds-grid slds-grid_align-center slds-var-m-bottom_medium" if:true={templateTotalPages}>
