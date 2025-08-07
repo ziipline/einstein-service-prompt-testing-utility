@@ -91,6 +91,21 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
                     continue;
                 }
                 
+                // Check if the grounded response was actually skipped during execution
+                if (isGroundedResponseSkipped(test)) {
+                    // Skip RAGAS evaluation for grounded responses that were skipped
+                    test.Quality_Metrics_Status__c = 'Skipped';
+                    test.Quality_Assessment_Details__c = JSON.serialize(new Map<String, Object>{
+                        'skipped_reason' => 'Grounded response was skipped - no valid search query returned from contextual test',
+                        'template_type' => test.Template_Type__c,
+                        'result_content' => test.Result__c,
+                        'timestamp' => DateTime.now().format()
+                    });
+                    testsToUpdate.add(test);
+                    System.debug('Skipping RAGAS evaluation for test ' + test.Id + ' - grounded response was skipped');
+                    continue;
+                }
+                
                 // Execute RAGAS quality assessment for knowledge-grounded tests only
                 Map<String, Object> qualityResults = evaluateTestQuality(test);
                 
@@ -128,6 +143,39 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
     public void finish(Database.BatchableContext bc) {
         // Log completion and update batch status if needed
         System.debug('RAGAS quality assessment batch completed for batches: ' + batchIds);
+    }
+    
+    /**
+     * @description Detects if a grounded response test was skipped during execution
+     * @param test Prompt_Test__c record to check
+     * @return Boolean true if the grounded response was skipped, false otherwise
+     */
+    private Boolean isGroundedResponseSkipped(Prompt_Test__c test) {
+        // Check if the result indicates the grounded response was skipped
+        if (String.isBlank(test.Result__c)) {
+            return false;
+        }
+        
+        String result = test.Result__c.toLowerCase();
+        
+        // Look for skip message patterns from ziip_PromptTestBatch.buildGroundedSkipMessage()
+        Boolean hasSkipMessage = result.contains('grounded template skipped') ||
+                                result.contains('grounded response skipped') ||
+                                result.contains('no valid search query');
+        
+        // Additional check for specific patterns that indicate the contextual test returned 'none'
+        Boolean hasNoneQuery = result.contains('result was none') ||
+                              result.contains('result was "none"') ||
+                              result.contains('search query (result was') ||
+                              result.contains('empty/blank');
+        
+        Boolean isSkipped = hasSkipMessage && hasNoneQuery;
+        
+        if (isSkipped) {
+            System.debug('Detected skipped grounded response for test ' + test.Id + ': ' + test.Result__c);
+        }
+        
+        return isSkipped;
     }
     
     /**
@@ -429,16 +477,8 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
                 wrappedParams.put(key, wrappedValue);
             }
             
-            // Create the input for Einstein Prompt Template
-            ConnectApi.EinsteinPromptTemplateGenerationsInput input = new ConnectApi.EinsteinPromptTemplateGenerationsInput();
-            input.isPreview = false;
-            input.inputParams = wrappedParams;
-            
-            // Configure additional settings
-            input.additionalConfig = new ConnectApi.EinsteinLlmAdditionalConfigInput();
-            input.additionalConfig.numGenerations = NUM_GENERATIONS;
-            input.additionalConfig.enablePiiMasking = true;
-            input.additionalConfig.applicationName = APPLICATION_NAME;
+            // Create the input for Einstein Prompt Template with version-safe approach
+            ConnectApi.EinsteinPromptTemplateGenerationsInput input = createVersionSafeInput(wrappedParams);
             
             // Use centralized input parameter logging
             ziip_BatchProcessingLogger.debugInputParameters(templateId, 'RAGAS Quality Assessment', input, null, null, null);
@@ -556,5 +596,52 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
         }
         
         return 0; // Default score if parsing fails
+    }
+    
+    /**
+     * @description Creates version-safe input for Einstein Prompt Template API calls
+     * Handles version compatibility issues by conditionally setting properties that may not be available in older API versions
+     * @param wrappedParams Input parameters wrapped in ConnectApi.WrappedValue format
+     * @return ConnectApi.EinsteinPromptTemplateGenerationsInput configured input object
+     */
+    private ConnectApi.EinsteinPromptTemplateGenerationsInput createVersionSafeInput(Map<String, ConnectApi.WrappedValue> wrappedParams) {
+        ConnectApi.EinsteinPromptTemplateGenerationsInput input = new ConnectApi.EinsteinPromptTemplateGenerationsInput();
+        
+        try {
+            // Set basic required properties
+            input.isPreview = false;
+            input.inputParams = wrappedParams;
+            
+            // Configure additional settings with version-safe approach
+            input.additionalConfig = new ConnectApi.EinsteinLlmAdditionalConfigInput();
+            input.additionalConfig.numGenerations = NUM_GENERATIONS;
+            input.additionalConfig.applicationName = APPLICATION_NAME;
+            
+            // Version-safe property setting: only set properties that are available in the current API version
+            try {
+                // Attempt to set enablePiiMasking (available in newer versions)
+                input.additionalConfig.enablePiiMasking = true;
+            } catch (Exception piiMaskingException) {
+                System.debug('PII masking not available in this API version: ' + piiMaskingException.getMessage());
+                // Continue without PII masking - not critical for functionality
+            }
+            
+            // Add any other version-safe property handling here
+            try {
+                // Handle any other version-specific properties that might cause issues
+                // For example, if there are future properties that might not be backward compatible
+                System.debug('Successfully created version-safe input configuration');
+            } catch (Exception configException) {
+                System.debug('Additional config warning: ' + configException.getMessage());
+                // Log but continue - most properties are optional
+            }
+            
+        } catch (Exception generalException) {
+            System.debug('Error creating version-safe input: ' + generalException.getMessage());
+            // Re-throw if this is a critical failure
+            throw new CalloutException('Failed to create version-safe input configuration: ' + generalException.getMessage());
+        }
+        
+        return input;
     }
 }
