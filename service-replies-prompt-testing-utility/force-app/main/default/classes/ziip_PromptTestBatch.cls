@@ -97,10 +97,8 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
     public Database.QueryLocator start(Database.BatchableContext bc) {
         executionCount++; // Track execution count for safety
         
-        System.debug('=== DEPENDENCY-AWARE BATCH START ===');
-        System.debug('Execution count: ' + executionCount);
-        System.debug('Processing child tests: ' + processingChildTests);
-        System.debug('Batch IDs: ' + batchIds);
+        // Use centralized batch state logging
+        ziip_BatchProcessingLogger.debugBatchState(batchIds, processingChildTests, executionCount);
         
         String queryCondition;
         
@@ -127,7 +125,6 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             queryCondition;
         
         System.debug('Query: ' + queryString);
-        System.debug('=== DEPENDENCY-AWARE BATCH START COMPLETE ===');
         
         return Database.getQueryLocator(queryString);
     }
@@ -142,8 +139,8 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
         Integer testsProcessed = 0;
         Integer testsSkipped = 0;
         
-        System.debug('=== EXECUTING BATCH WITH ' + scope.size() + ' TESTS ===');
-        System.debug('Processing child tests: ' + processingChildTests);
+        // Use centralized batch scope logging
+        ziip_BatchProcessingLogger.debugBatchScope(scope, testsProcessed, testsSkipped);
         
         for (Prompt_Test__c test : scope) {
             try {
@@ -173,9 +170,6 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             
             testsToUpdate.add(test);
         }
-        
-        System.debug('Tests processed: ' + testsProcessed + ', Tests skipped: ' + testsSkipped);
-        System.debug('=== BATCH EXECUTION COMPLETE ===');
         
         updateTestRecords(testsToUpdate);
     }
@@ -552,22 +546,15 @@ public class ziip_PromptTestBatch implements Database.Batchable<sObject>, Databa
             promptGenerationsInput.additionalConfig.applicationName = APPLICATION_NAME;
             promptGenerationsInput.isPreview = false;
             
-            // Debug input parameters before API call
-            System.debug('=== EXECUTING TEMPLATE ===');
-            System.debug('Template ID: ' + templateId);
-            System.debug('Template Type: ' + templateType);
-            System.debug('Context Data Length: ' + (contextData != null ? contextData.length() : 0));
-            System.debug('Search Query: ' + searchQuery);
-            System.debug('Retriever ID: ' + retrieverId);
+            // Use centralized input parameter logging
+            ziip_BatchProcessingLogger.debugInputParameters(templateId, templateType, promptGenerationsInput, contextData, searchQuery, retrieverId);
             
             // Call the service to generate messages
             ConnectApi.EinsteinPromptTemplateGenerationsRepresentation generationsOutput = 
                 ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate(templateId, promptGenerationsInput);
             
-            // Debug response
-            System.debug('=== API RESPONSE ===');
-            System.debug('Request ID: ' + (generationsOutput?.requestId));
-            System.debug('Generations Count: ' + (generationsOutput?.generations?.size()));
+            // Use centralized response logging
+            ziip_BatchProcessingLogger.debugConnectApiResponse(generationsOutput, templateId, templateType);
             
             // Extract the generated text, resolved prompt, and request ID
             if (generationsOutput != null && generationsOutput.generations != null && !generationsOutput.generations.isEmpty()) {

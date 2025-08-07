@@ -413,11 +413,7 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
     }
     
     private Map<String, Object> callEinsteinTemplate(String templateId, Map<String, Object> inputParams) {
-        // Enhanced logging for debugging
         Long startTime = System.currentTimeMillis();
-        System.debug('=== RAGAS TEMPLATE CALL START ===');
-        System.debug('Template ID: ' + templateId);
-        System.debug('Input Parameters: ' + JSON.serialize(inputParams));
         
         try {
             // Validate template ID
@@ -433,24 +429,26 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
                 wrappedParams.put(key, wrappedValue);
             }
             
-            System.debug('Wrapped Parameters Count: ' + wrappedParams.size());
-            
             // Create the input for Einstein Prompt Template
             ConnectApi.EinsteinPromptTemplateGenerationsInput input = new ConnectApi.EinsteinPromptTemplateGenerationsInput();
             input.isPreview = false;
             input.inputParams = wrappedParams;
             
-            // Configure additional settings (CRITICAL: This was missing!)
+            // Configure additional settings
             input.additionalConfig = new ConnectApi.EinsteinLlmAdditionalConfigInput();
             input.additionalConfig.numGenerations = NUM_GENERATIONS;
             input.additionalConfig.enablePiiMasking = true;
             input.additionalConfig.applicationName = APPLICATION_NAME;
             
-            System.debug('Calling Einstein API for template: ' + templateId);
+            // Use centralized input parameter logging
+            ziip_BatchProcessingLogger.debugInputParameters(templateId, 'RAGAS Quality Assessment', input, null, null, null);
             
             // Call the Einstein Prompt Template API
             ConnectApi.EinsteinPromptTemplateGenerationsRepresentation result = 
                 ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate(templateId, input);
+            
+            // Use centralized response logging
+            ziip_BatchProcessingLogger.debugConnectApiResponse(result, templateId, 'RAGAS Quality Assessment');
             
             Long apiCallTime = System.currentTimeMillis() - startTime;
             System.debug('Einstein API call completed in ' + apiCallTime + 'ms');
@@ -463,36 +461,28 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
             
             if (result.generations == null || result.generations.isEmpty()) {
                 System.debug('ERROR: No generations in Einstein API response');
-                System.debug('Full result object: ' + JSON.serialize(result));
                 return createErrorResponse('No generations in Einstein API response', templateId, inputParams);
             }
             
             String generatedText = result.generations[0].text;
-            System.debug('Raw generated text: ' + generatedText);
-            System.debug('Generated text length: ' + (generatedText != null ? generatedText.length() : 0));
+            System.debug('Raw generated text length: ' + (generatedText != null ? generatedText.length() : 0));
             
             // Flexible response parsing
             Map<String, Object> parsedResponse = parseTemplateResponse(generatedText, templateId);
             
             Long totalTime = System.currentTimeMillis() - startTime;
             System.debug('Total processing time: ' + totalTime + 'ms');
-            System.debug('Parsed response: ' + JSON.serialize(parsedResponse));
-            System.debug('=== RAGAS TEMPLATE CALL END ===');
             
             return parsedResponse;
             
         } catch (ConnectApi.ConnectApiException e) {
             Long errorTime = System.currentTimeMillis() - startTime;
             System.debug('ConnectApi Exception after ' + errorTime + 'ms: ' + e.getMessage());
-            System.debug('Exception Type: ' + e.getTypeName());
-            System.debug('Exception Stack Trace: ' + e.getStackTraceString());
             return createErrorResponse('ConnectApi Exception: ' + e.getMessage(), templateId, inputParams);
             
         } catch (Exception e) {
             Long errorTime = System.currentTimeMillis() - startTime;
             System.debug('General Exception after ' + errorTime + 'ms: ' + e.getMessage());
-            System.debug('Exception Type: ' + e.getTypeName());
-            System.debug('Exception Stack Trace: ' + e.getStackTraceString());
             return createErrorResponse('General Exception: ' + e.getMessage(), templateId, inputParams);
         }
     }

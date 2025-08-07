@@ -1,5 +1,5 @@
 /**
- * @description Centralized debug logging utility for batch operations
+ * @description Centralised debug logging utility for batch operations
  * Handles extensive debugging for Einstein AI API calls and batch processing
  */
 public class ziip_BatchProcessingLogger {
