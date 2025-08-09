@@ -114,12 +114,19 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
                 test.RAGAS_Relevancy_Score__c = (Decimal) qualityResults.get('relevancy_score');
                 test.RAGAS_Context_Quality_Score__c = (Decimal) qualityResults.get('context_quality_score');
                 
-                // Store detailed analysis JSON responses
-                test.RAGAS_Faithfulness_Analysis__c = (String) qualityResults.get('faithfulness_analysis');
-                test.RAGAS_Relevancy_Analysis__c = (String) qualityResults.get('relevancy_analysis');
-                test.RAGAS_Context_Quality_Analysis__c = (String) qualityResults.get('context_quality_analysis');
+                // Store detailed analysis with human-readable formatting
+                String faithfulnessAnalysis = (String) qualityResults.get('faithfulness_analysis');
+                String relevancyAnalysis = (String) qualityResults.get('relevancy_analysis');
+                String contextQualityAnalysis = (String) qualityResults.get('context_quality_analysis');
                 
-                test.Quality_Assessment_Details__c = JSON.serialize(qualityResults);
+                test.RAGAS_Faithfulness_Analysis__c = String.isNotBlank(faithfulnessAnalysis) ? 
+                    ziip_EinsteinResponseParser.formatFaithfulnessAnalysis(faithfulnessAnalysis) : faithfulnessAnalysis;
+                test.RAGAS_Relevancy_Analysis__c = String.isNotBlank(relevancyAnalysis) ? 
+                    ziip_EinsteinResponseParser.formatRelevancyAnalysis(relevancyAnalysis) : relevancyAnalysis;
+                test.RAGAS_Context_Quality_Analysis__c = String.isNotBlank(contextQualityAnalysis) ? 
+                    ziip_EinsteinResponseParser.formatContextQualityAnalysis(contextQualityAnalysis) : contextQualityAnalysis;
+                
+                test.Quality_Assessment_Details__c = ziip_EinsteinResponseParser.formatQualityAssessmentDetails(JSON.serialize(qualityResults));
                 test.Quality_Metrics_Status__c = 'Completed';
                 
                 testsToUpdate.add(test);
