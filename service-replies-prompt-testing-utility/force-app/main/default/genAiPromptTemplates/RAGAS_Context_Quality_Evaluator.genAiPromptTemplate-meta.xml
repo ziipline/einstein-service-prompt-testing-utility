@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <description>Evaluates the precision and recall of retrieved contextual information, returns the RAGAS context quality score from 0-100</description>
     <developerName>RAGAS_Context_Quality_Evaluator</developerName>
     <masterLabel>RAGAS Context Quality Evaluator</masterLabel>

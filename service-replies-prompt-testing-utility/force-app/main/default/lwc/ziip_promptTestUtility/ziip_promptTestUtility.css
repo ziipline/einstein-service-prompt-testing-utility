@@ -13,50 +13,20 @@
 
 /* Quality Assessment Styles */
 .quality-metric-box {
-    border: 1px solid #d8dde6;
-    border-radius: 4px;
-    padding: slds-p_around_medium;
-    background-color: slds-color__background_gray-2;
+    border: 1px solid var(--slds-c-border-color-base);
+    border-radius: var(--slds-c-border-radius-medium);
     transition: all 0.2s ease;
 }
 
 .quality-metric-box:hover {
-    border-color: #1589ee;
-    box-shadow: 0 1px 3px 0 rgba(0,0,0,0.08);
+    border-color: var(--slds-c-border-color-brand);
+    box-shadow: var(--slds-c-box-shadow-medium);
 }
 
 .quality-metric-box h4 {
-    margin: 0 0 0.5rem 0;
-    color: #080707;
-    font-weight: 600;
+    font-weight: var(--slds-c-font-weight-medium);
 }
 
 .quality-metric-box p {
-    margin: 0;
-    font-size: slds-text-body_regular;
     line-height: 1.4;
-}
-
-/* Template Table Loading Overlay */
-.template-table-container {
-    position: relative;
-}
-
-.template-table-container .slds-spinner_container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(255, 255, 255, 0.8);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 200px;
-}
-
-.template-table-container .slds-spinner {
-    width: 2rem;
-    height: 2rem;
 }

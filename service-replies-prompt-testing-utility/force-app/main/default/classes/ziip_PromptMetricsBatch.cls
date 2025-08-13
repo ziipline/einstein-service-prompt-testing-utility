@@ -1,22 +1,45 @@
+/**
+ * @description Simplified batch class for processing RAGAS quality metrics
+ * Now uses utility classes for response parsing and logging
+ * @author Ziipline
+ */
 public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Database.AllowsCallouts, Database.Stateful {
     
     private Set<Id> batchIds;
     public Integer batchSize;
     
-    // Template types for RAGAS evaluation
+    // ===========================================
+    // TEMPLATE TYPE CONSTANTS
+    // ===========================================
     private static final String TEMPLATE_TYPE_FAITHFULNESS = 'RAGAS Faithfulness';
     private static final String TEMPLATE_TYPE_RELEVANCY = 'RAGAS Relevancy';
     private static final String TEMPLATE_TYPE_CONTEXT_QUALITY = 'RAGAS Context Quality';
     
-    // Einstein AI configuration constants
+    // ===========================================
+    // EINSTEIN AI CONFIGURATION CONSTANTS
+    // ===========================================
     private static final String APPLICATION_NAME = 'PromptTemplateGenerationsInvocable';
     private static final Integer NUM_GENERATIONS = 1;
     
-    // Governor limit constants for batch sizing
+    // ===========================================
+    // GOVERNOR LIMIT CONSTANTS
+    // ===========================================
     private static final Integer MAX_CALLOUTS_PER_TRANSACTION = 100;
     private static final Integer DEFAULT_BATCH_SIZE = 200;
-    private static final Integer CALLOUT_SAFETY_BUFFER = 10; // Leave buffer for other operations
-    private static final Integer MAX_CALLOUTS_PER_RECORD = 3; // Faithfulness + Relevancy + Context Quality
+    private static final Integer CALLOUT_SAFETY_BUFFER = 10;
+    private static final Integer MAX_CALLOUTS_PER_RECORD = 3;
+    
+    // ===========================================
+    // INPUT PARAMETER CONSTANTS
+    // ===========================================
+    private static final String INPUT_ORIGINAL_CONTEXT = 'Input:original_context';
+    private static final String INPUT_AI_RESPONSE = 'Input:ai_response';
+    private static final String INPUT_ORIGINAL_QUESTION = 'Input:original_question';
+    private static final String INPUT_USER_QUESTION = 'Input:user_question';
+    private static final String INPUT_AVAILABLE_CONTEXT = 'Input:available_context';
+    private static final String INPUT_SEARCH_QUERY = 'Input:search_query';
+    private static final String INPUT_RETRIEVED_CONTEXT = 'Input:retrieved_context';
+    private static final String INPUT_KNOWLEDGE_BASE_INFO = 'Input:knowledge_base_info';
     
     // Constructor with default batch size
     public ziip_PromptMetricsBatch(Set<Id> batchIds) {
@@ -68,6 +91,21 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
                     continue;
                 }
                 
+                // Check if the grounded response was actually skipped during execution
+                if (isGroundedResponseSkipped(test)) {
+                    // Skip RAGAS evaluation for grounded responses that were skipped
+                    test.Quality_Metrics_Status__c = 'Skipped';
+                    test.Quality_Assessment_Details__c = JSON.serialize(new Map<String, Object>{
+                        'skipped_reason' => 'Grounded response was skipped - no valid search query returned from contextual test',
+                        'template_type' => test.Template_Type__c,
+                        'result_content' => test.Result__c,
+                        'timestamp' => DateTime.now().format()
+                    });
+                    testsToUpdate.add(test);
+                    System.debug('Skipping RAGAS evaluation for test ' + test.Id + ' - grounded response was skipped');
+                    continue;
+                }
+                
                 // Execute RAGAS quality assessment for knowledge-grounded tests only
                 Map<String, Object> qualityResults = evaluateTestQuality(test);
                 
@@ -76,12 +114,19 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
                 test.RAGAS_Relevancy_Score__c = (Decimal) qualityResults.get('relevancy_score');
                 test.RAGAS_Context_Quality_Score__c = (Decimal) qualityResults.get('context_quality_score');
                 
-                // Store detailed analysis JSON responses
-                test.RAGAS_Faithfulness_Analysis__c = (String) qualityResults.get('faithfulness_analysis');
-                test.RAGAS_Relevancy_Analysis__c = (String) qualityResults.get('relevancy_analysis');
-                test.RAGAS_Context_Quality_Analysis__c = (String) qualityResults.get('context_quality_analysis');
+                // Store detailed analysis with human-readable formatting
+                String faithfulnessAnalysis = (String) qualityResults.get('faithfulness_analysis');
+                String relevancyAnalysis = (String) qualityResults.get('relevancy_analysis');
+                String contextQualityAnalysis = (String) qualityResults.get('context_quality_analysis');
                 
-                test.Quality_Assessment_Details__c = JSON.serialize(qualityResults);
+                test.RAGAS_Faithfulness_Analysis__c = String.isNotBlank(faithfulnessAnalysis) ? 
+                    ziip_EinsteinResponseParser.formatFaithfulnessAnalysis(faithfulnessAnalysis) : faithfulnessAnalysis;
+                test.RAGAS_Relevancy_Analysis__c = String.isNotBlank(relevancyAnalysis) ? 
+                    ziip_EinsteinResponseParser.formatRelevancyAnalysis(relevancyAnalysis) : relevancyAnalysis;
+                test.RAGAS_Context_Quality_Analysis__c = String.isNotBlank(contextQualityAnalysis) ? 
+                    ziip_EinsteinResponseParser.formatContextQualityAnalysis(contextQualityAnalysis) : contextQualityAnalysis;
+                
+                test.Quality_Assessment_Details__c = ziip_EinsteinResponseParser.formatQualityAssessmentDetails(JSON.serialize(qualityResults));
                 test.Quality_Metrics_Status__c = 'Completed';
                 
                 testsToUpdate.add(test);
@@ -105,6 +150,39 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
     public void finish(Database.BatchableContext bc) {
         // Log completion and update batch status if needed
         System.debug('RAGAS quality assessment batch completed for batches: ' + batchIds);
+    }
+    
+    /**
+     * @description Detects if a grounded response test was skipped during execution
+     * @param test Prompt_Test__c record to check
+     * @return Boolean true if the grounded response was skipped, false otherwise
+     */
+    private Boolean isGroundedResponseSkipped(Prompt_Test__c test) {
+        // Check if the result indicates the grounded response was skipped
+        if (String.isBlank(test.Result__c)) {
+            return false;
+        }
+        
+        String result = test.Result__c.toLowerCase();
+        
+        // Look for skip message patterns from ziip_PromptTestBatch.buildGroundedSkipMessage()
+        Boolean hasSkipMessage = result.contains('grounded template skipped') ||
+                                result.contains('grounded response skipped') ||
+                                result.contains('no valid search query');
+        
+        // Additional check for specific patterns that indicate the contextual test returned 'none'
+        Boolean hasNoneQuery = result.contains('result was none') ||
+                              result.contains('result was "none"') ||
+                              result.contains('search query (result was') ||
+                              result.contains('empty/blank');
+        
+        Boolean isSkipped = hasSkipMessage && hasNoneQuery;
+        
+        if (isSkipped) {
+            System.debug('Detected skipped grounded response for test ' + test.Id + ': ' + test.Result__c);
+        }
+        
+        return isSkipped;
     }
     
     /**
@@ -390,11 +468,7 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
     }
     
     private Map<String, Object> callEinsteinTemplate(String templateId, Map<String, Object> inputParams) {
-        // Enhanced logging for debugging
         Long startTime = System.currentTimeMillis();
-        System.debug('=== RAGAS TEMPLATE CALL START ===');
-        System.debug('Template ID: ' + templateId);
-        System.debug('Input Parameters: ' + JSON.serialize(inputParams));
         
         try {
             // Validate template ID
@@ -410,24 +484,18 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
                 wrappedParams.put(key, wrappedValue);
             }
             
-            System.debug('Wrapped Parameters Count: ' + wrappedParams.size());
+            // Create the input for Einstein Prompt Template with version-safe approach
+            ConnectApi.EinsteinPromptTemplateGenerationsInput input = createVersionSafeInput(wrappedParams);
             
-            // Create the input for Einstein Prompt Template
-            ConnectApi.EinsteinPromptTemplateGenerationsInput input = new ConnectApi.EinsteinPromptTemplateGenerationsInput();
-            input.isPreview = false;
-            input.inputParams = wrappedParams;
-            
-            // Configure additional settings (CRITICAL: This was missing!)
-            input.additionalConfig = new ConnectApi.EinsteinLlmAdditionalConfigInput();
-            input.additionalConfig.numGenerations = NUM_GENERATIONS;
-            input.additionalConfig.enablePiiMasking = true;
-            input.additionalConfig.applicationName = APPLICATION_NAME;
-            
-            System.debug('Calling Einstein API for template: ' + templateId);
+            // Use centralized input parameter logging
+            ziip_BatchProcessingLogger.debugInputParameters(templateId, 'RAGAS Quality Assessment', input, null, null, null);
             
             // Call the Einstein Prompt Template API
             ConnectApi.EinsteinPromptTemplateGenerationsRepresentation result = 
                 ConnectApi.EinsteinLLM.generateMessagesForPromptTemplate(templateId, input);
+            
+            // Use centralized response logging
+            ziip_BatchProcessingLogger.debugConnectApiResponse(result, templateId, 'RAGAS Quality Assessment');
             
             Long apiCallTime = System.currentTimeMillis() - startTime;
             System.debug('Einstein API call completed in ' + apiCallTime + 'ms');
@@ -440,219 +508,40 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
             
             if (result.generations == null || result.generations.isEmpty()) {
                 System.debug('ERROR: No generations in Einstein API response');
-                System.debug('Full result object: ' + JSON.serialize(result));
                 return createErrorResponse('No generations in Einstein API response', templateId, inputParams);
             }
             
             String generatedText = result.generations[0].text;
-            System.debug('Raw generated text: ' + generatedText);
-            System.debug('Generated text length: ' + (generatedText != null ? generatedText.length() : 0));
+            System.debug('Raw generated text length: ' + (generatedText != null ? generatedText.length() : 0));
             
             // Flexible response parsing
             Map<String, Object> parsedResponse = parseTemplateResponse(generatedText, templateId);
             
             Long totalTime = System.currentTimeMillis() - startTime;
             System.debug('Total processing time: ' + totalTime + 'ms');
-            System.debug('Parsed response: ' + JSON.serialize(parsedResponse));
-            System.debug('=== RAGAS TEMPLATE CALL END ===');
             
             return parsedResponse;
             
         } catch (ConnectApi.ConnectApiException e) {
             Long errorTime = System.currentTimeMillis() - startTime;
             System.debug('ConnectApi Exception after ' + errorTime + 'ms: ' + e.getMessage());
-            System.debug('Exception Type: ' + e.getTypeName());
-            System.debug('Exception Stack Trace: ' + e.getStackTraceString());
             return createErrorResponse('ConnectApi Exception: ' + e.getMessage(), templateId, inputParams);
             
         } catch (Exception e) {
             Long errorTime = System.currentTimeMillis() - startTime;
             System.debug('General Exception after ' + errorTime + 'ms: ' + e.getMessage());
-            System.debug('Exception Type: ' + e.getTypeName());
-            System.debug('Exception Stack Trace: ' + e.getStackTraceString());
             return createErrorResponse('General Exception: ' + e.getMessage(), templateId, inputParams);
         }
     }
     
+    /**
+     * @description Parses template response using utility parser
+     * @param generatedText Raw response text from Einstein API
+     * @param templateId Template ID for context
+     * @return Map<String, Object> parsed response data
+     */
     private Map<String, Object> parseTemplateResponse(String generatedText, String templateId) {
-        System.debug('=== PARSING TEMPLATE RESPONSE ===');
-        System.debug('Template ID: ' + templateId);
-        System.debug('Generated Text: ' + generatedText);
-        
-        if (String.isBlank(generatedText)) {
-            System.debug('ERROR: Generated text is null or empty');
-            return new Map<String, Object>{
-                'error' => 'Generated text is null or empty',
-                'score' => 0,
-                'raw_response' => generatedText
-            };
-        }
-        
-        // Try JSON parsing first (direct JSON)
-        try {
-            Map<String, Object> jsonResult = (Map<String, Object>) JSON.deserializeUntyped(generatedText);
-            System.debug('Successfully parsed as direct JSON: ' + JSON.serialize(jsonResult));
-            return jsonResult;
-        } catch (Exception jsonE) {
-            System.debug('Direct JSON parsing failed: ' + jsonE.getMessage());
-        }
-        
-        // Try to extract JSON from markdown code blocks
-        String extractedJson = extractJsonFromMarkdown(generatedText);
-        if (String.isNotBlank(extractedJson)) {
-            try {
-                Map<String, Object> jsonResult = (Map<String, Object>) JSON.deserializeUntyped(extractedJson);
-                System.debug('Successfully parsed JSON from markdown: ' + JSON.serialize(jsonResult));
-                return jsonResult;
-            } catch (Exception jsonE) {
-                System.debug('Markdown JSON parsing failed: ' + jsonE.getMessage());
-            }
-        }
-        
-        // Try to extract score from plain text responses
-        Map<String, Object> textResult = extractScoreFromText(generatedText, templateId);
-        System.debug('Text extraction result: ' + JSON.serialize(textResult));
-        
-        return textResult;
-    }
-    
-    private String extractJsonFromMarkdown(String text) {
-        if (String.isBlank(text)) {
-            return null;
-        }
-        
-        // Look for JSON code blocks (```json ... ```)
-        String lowerText = text.toLowerCase();
-        Integer jsonStart = lowerText.indexOf('```json');
-        if (jsonStart >= 0) {
-            // Find the start of the actual JSON content
-            Integer contentStart = text.indexOf('\n', jsonStart);
-            if (contentStart >= 0) {
-                contentStart++; // Move past the newline
-                
-                // Find the end of the code block
-                Integer contentEnd = text.indexOf('```', contentStart);
-                if (contentEnd >= 0) {
-                    String jsonContent = text.substring(contentStart, contentEnd).trim();
-                    System.debug('Extracted JSON from markdown: ' + jsonContent);
-                    return jsonContent;
-                }
-            }
-        }
-        
-        // Look for generic code blocks (``` ... ```) that might contain JSON
-        Integer codeStart = text.indexOf('```');
-        if (codeStart >= 0) {
-            Integer contentStart = text.indexOf('\n', codeStart);
-            if (contentStart >= 0) {
-                contentStart++; // Move past the newline
-                
-                Integer contentEnd = text.indexOf('```', contentStart);
-                if (contentEnd >= 0) {
-                    String codeContent = text.substring(contentStart, contentEnd).trim();
-                    // Check if this looks like JSON (starts with { and ends with })
-                    if (codeContent.startsWith('{') && codeContent.endsWith('}')) {
-                        System.debug('Extracted JSON from generic code block: ' + codeContent);
-                        return codeContent;
-                    }
-                }
-            }
-        }
-        
-        return null;
-    }
-    
-    private Map<String, Object> extractScoreFromText(String text, String templateId) {
-        Map<String, Object> result = new Map<String, Object>{
-            'raw_response' => text,
-            'parsing_method' => 'text_extraction'
-        };
-        
-        // Use simpler string matching approach instead of regex
-        String lowerText = text.toLowerCase();
-        Decimal extractedScore = null;
-        String extractionMethod = null;
-        
-        // Look for score keywords followed by numbers
-        List<String> scoreKeywords = new List<String>{'score:', 'score', 'rating:', 'rating', 'faithfulness:', 'faithfulness', 'relevancy:', 'relevancy', 'relevance:', 'relevance'};
-        
-        for (String keyword : scoreKeywords) {
-            Integer keywordIndex = lowerText.indexOf(keyword);
-            if (keywordIndex >= 0) {
-                // Look for numbers after the keyword
-                String afterKeyword = text.substring(keywordIndex + keyword.length());
-                Decimal score = extractFirstNumber(afterKeyword);
-                if (score != null) {
-                    extractedScore = score;
-                    extractionMethod = 'keyword: ' + keyword;
-                    System.debug('Extracted score using keyword "' + keyword + '": ' + score);
-                    break;
-                }
-            }
-        }
-        
-        // If no keyword match, look for any decimal number in the text
-        if (extractedScore == null) {
-            extractedScore = extractFirstNumber(text);
-            if (extractedScore != null) {
-                extractionMethod = 'first_number';
-                System.debug('Extracted first number from text: ' + extractedScore);
-            }
-        }
-        
-        // Set the score and field name
-        String scoreField = determineScoreField(templateId);
-        if (extractedScore != null) {
-            result.put(scoreField, extractedScore);
-            result.put('extraction_method', extractionMethod);
-        } else {
-            result.put(scoreField, 0);
-            result.put('error', 'No score found in response');
-            System.debug('No score found in text: ' + text);
-        }
-        
-        return result;
-    }
-    
-    private Decimal extractFirstNumber(String text) {
-        if (String.isBlank(text)) {
-            return null;
-        }
-        
-        // Clean the text and look for decimal numbers
-        String cleanText = text.replaceAll('[^0-9.]', ' ');
-        List<String> parts = cleanText.split('\\s+');
-        
-        for (String part : parts) {
-            if (String.isNotBlank(part) && (part.contains('.') || part.isNumeric())) {
-                try {
-                    Decimal num = Decimal.valueOf(part);
-                    // Updated validation - score should be in 0-100 range as per RAGAS template specs
-                    if (num >= 0 && num <= 100) {
-                        return num;
-                    }
-                } catch (Exception e) {
-                    continue;
-                }
-            }
-        }
-        
-        return null;
-    }
-    
-    private String determineScoreField(String templateId) {
-        // This is a simple heuristic - in practice, you might want to store this mapping
-        if (templateId != null) {
-            String templateIdLower = templateId.toLowerCase();
-            if (templateIdLower.contains('faithfulness')) {
-                return 'faithfulness_score';
-            } else if (templateIdLower.contains('relevancy') || templateIdLower.contains('relevance')) {
-                return 'relevancy_score';
-            } else if (templateIdLower.contains('context')) {
-                return 'context_quality_score';
-            }
-        }
-        return 'score'; // Default field name
+        return ziip_EinsteinResponseParser.parseTemplateResponse(generatedText, templateId);
     }
     
     private Map<String, Object> createErrorResponse(String errorMessage, String templateId, Map<String, Object> inputParams) {
@@ -714,5 +603,52 @@ public class ziip_PromptMetricsBatch implements Database.Batchable<sObject>, Dat
         }
         
         return 0; // Default score if parsing fails
+    }
+    
+    /**
+     * @description Creates version-safe input for Einstein Prompt Template API calls
+     * Handles version compatibility issues by conditionally setting properties that may not be available in older API versions
+     * @param wrappedParams Input parameters wrapped in ConnectApi.WrappedValue format
+     * @return ConnectApi.EinsteinPromptTemplateGenerationsInput configured input object
+     */
+    private ConnectApi.EinsteinPromptTemplateGenerationsInput createVersionSafeInput(Map<String, ConnectApi.WrappedValue> wrappedParams) {
+        ConnectApi.EinsteinPromptTemplateGenerationsInput input = new ConnectApi.EinsteinPromptTemplateGenerationsInput();
+        
+        try {
+            // Set basic required properties
+            input.isPreview = false;
+            input.inputParams = wrappedParams;
+            
+            // Configure additional settings with version-safe approach
+            input.additionalConfig = new ConnectApi.EinsteinLlmAdditionalConfigInput();
+            input.additionalConfig.numGenerations = NUM_GENERATIONS;
+            input.additionalConfig.applicationName = APPLICATION_NAME;
+            
+            // Version-safe property setting: only set properties that are available in the current API version
+            try {
+                // Attempt to set enablePiiMasking (available in newer versions)
+                input.additionalConfig.enablePiiMasking = true;
+            } catch (Exception piiMaskingException) {
+                System.debug('PII masking not available in this API version: ' + piiMaskingException.getMessage());
+                // Continue without PII masking - not critical for functionality
+            }
+            
+            // Add any other version-safe property handling here
+            try {
+                // Handle any other version-specific properties that might cause issues
+                // For example, if there are future properties that might not be backward compatible
+                System.debug('Successfully created version-safe input configuration');
+            } catch (Exception configException) {
+                System.debug('Additional config warning: ' + configException.getMessage());
+                // Log but continue - most properties are optional
+            }
+            
+        } catch (Exception generalException) {
+            System.debug('Error creating version-safe input: ' + generalException.getMessage());
+            // Re-throw if this is a critical failure
+            throw new CalloutException('Failed to create version-safe input configuration: ' + generalException.getMessage());
+        }
+        
+        return input;
     }
 }

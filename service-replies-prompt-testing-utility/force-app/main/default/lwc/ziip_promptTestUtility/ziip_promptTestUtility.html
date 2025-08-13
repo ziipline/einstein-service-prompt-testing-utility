@@ -427,32 +427,31 @@
                         </p>
                     </div>
 
+                    <!-- Template Loading Spinner -->
+                    <template if:true={isLoadingTemplates}>
+                        <div class="slds-var-m-bottom_medium slds-text-align_center">
+                            <lightning-spinner 
+                                alternative-text="Loading templates..." 
+                                size="large">
+                            </lightning-spinner>
+                            <div class="slds-var-m-top_small">
+                                <p class="slds-text-body_regular">Loading templates...</p>
+                                <p class="slds-text-body_small slds-text-color_weak">Please wait while we fetch the latest template data.</p>
+                            </div>
+                        </div>
+                    </template>
+
                     <!-- Template Table -->
-                    <div class="slds-var-m-bottom_medium">
-                        <div class="template-table-container">
-                            <!-- Loading Overlay -->
-                            <template if:true={isLoadingTemplates}>
-                                <div class="slds-is-relative">
-                                    <div class="slds-spinner_container">
-                                        <div class="slds-spinner slds-spinner_medium slds-spinner_brand" role="status">
-                                            <span class="slds-assistive-text">Loading templates...</span>
-                                            <div class="slds-spinner__dot-a"></div>
-                                            <div class="slds-spinner__dot-b"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                            
-                            <!-- Template Table -->
+                    <template if:false={isLoadingTemplates}>
+                        <div class="slds-var-m-bottom_medium">
                             <lightning-datatable
                                 key-field="Id"
                                 data={promptTemplates}
                                 columns={templateColumns}
-                                onrowaction={handleTemplateAction}
-                                is-loading={isLoadingTemplates}>
+                                onrowaction={handleTemplateAction}>
                             </lightning-datatable>
                         </div>
-                    </div>
+                    </template>
 
                     <!-- Template Pagination Controls -->
                     <div class="slds-grid slds-grid_align-center slds-var-m-bottom_medium" if:true={templateTotalPages}>
