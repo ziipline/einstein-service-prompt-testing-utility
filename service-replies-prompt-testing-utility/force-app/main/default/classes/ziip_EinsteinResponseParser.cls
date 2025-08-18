@@ -607,12 +607,6 @@ public class ziip_EinsteinResponseParser {
             
             // Score
             Object scoreObj = response.get('context_quality_score');
-            if (scoreObj == null) {
-                scoreObj = response.get('context_score');
-            }
-            if (scoreObj == null) {
-                scoreObj = response.get('score');
-            }
             if (scoreObj != null) {
                 formatted += 'Score: ' + scoreObj + '/100\n\n';
             }
@@ -625,63 +619,67 @@ public class ziip_EinsteinResponseParser {
                 formatted += String.valueOf(reasoningObj) + '\n\n';
             }
             
-            // Precision Score
-            Object precisionObj = response.get('precision');
-            if (precisionObj != null) {
-                formatted += 'Precision: ' + precisionObj;
-                formatted += ' (Proportion of retrieved context that is relevant)\n';
+            // Precision Assessment
+            Object precisionAssessmentObj = response.get('precision_assessment');
+            if (precisionAssessmentObj != null) {
+                formatted += 'Precision Assessment:\n';
+                formatted += '--------------------\n';
+                formatted += String.valueOf(precisionAssessmentObj) + '\n\n';
             }
             
-            // Recall Score
-            Object recallObj = response.get('recall');
-            if (recallObj != null) {
-                formatted += 'Recall: ' + recallObj;
-                formatted += ' (Proportion of relevant context that was retrieved)\n\n';
+            // Recall Assessment
+            Object recallAssessmentObj = response.get('recall_assessment');
+            if (recallAssessmentObj != null) {
+                formatted += 'Recall Assessment:\n';
+                formatted += '-----------------\n';
+                formatted += String.valueOf(recallAssessmentObj) + '\n\n';
             }
             
-            // Relevant Context
-            Object relevantContextObj = response.get('relevant_context');
-            if (relevantContextObj instanceof List<Object>) {
-                List<Object> relevantContext = (List<Object>) relevantContextObj;
-                if (!relevantContext.isEmpty()) {
-                    formatted += 'Relevant Context Elements:\n';
-                    formatted += '--------------------------\n';
-                    for (Integer i = 0; i < relevantContext.size(); i++) {
-                        formatted += '• ' + String.valueOf(relevantContext[i]) + '\n';
-                    }
-                    formatted += '\n';
-                }
-            }
-            
-            // Irrelevant Context
-            Object irrelevantContextObj = response.get('irrelevant_context');
-            if (irrelevantContextObj instanceof List<Object>) {
-                List<Object> irrelevantContext = (List<Object>) irrelevantContextObj;
-                if (!irrelevantContext.isEmpty()) {
-                    formatted += 'Irrelevant Context Elements:\n';
-                    formatted += '----------------------------\n';
-                    for (Integer i = 0; i < irrelevantContext.size(); i++) {
-                        formatted += '• ' + String.valueOf(irrelevantContext[i]) + '\n';
+            // Relevant Portions
+            Object relevantPortionsObj = response.get('relevant_portions');
+            if (relevantPortionsObj instanceof List<Object>) {
+                List<Object> relevantPortions = (List<Object>) relevantPortionsObj;
+                if (!relevantPortions.isEmpty()) {
+                    formatted += 'Relevant Portions:\n';
+                    formatted += '------------------\n';
+                    for (Integer i = 0; i < relevantPortions.size(); i++) {
+                        formatted += '• ' + String.valueOf(relevantPortions[i]) + '\n';
                     }
                     formatted += '\n';
                 } else {
-                    formatted += 'Irrelevant Context Elements: None identified\n\n';
+                    formatted += 'Relevant Portions: None identified\n\n';
                 }
             }
             
-            // Missing Context
-            Object missingContextObj = response.get('missing_context');
-            if (missingContextObj instanceof List<Object>) {
-                List<Object> missingContext = (List<Object>) missingContextObj;
-                if (!missingContext.isEmpty()) {
-                    formatted += 'Missing Context Elements:\n';
-                    formatted += '-------------------------\n';
-                    for (Integer i = 0; i < missingContext.size(); i++) {
-                        formatted += '• ' + String.valueOf(missingContext[i]) + '\n';
+            // Irrelevant Portions
+            Object irrelevantPortionsObj = response.get('irrelevant_portions');
+            if (irrelevantPortionsObj instanceof List<Object>) {
+                List<Object> irrelevantPortions = (List<Object>) irrelevantPortionsObj;
+                if (!irrelevantPortions.isEmpty()) {
+                    formatted += 'Irrelevant Portions:\n';
+                    formatted += '--------------------\n';
+                    for (Integer i = 0; i < irrelevantPortions.size(); i++) {
+                        formatted += '• ' + String.valueOf(irrelevantPortions[i]) + '\n';
                     }
                     formatted += '\n';
                 } else {
-                    formatted += 'Missing Context Elements: None identified\n\n';
+                    formatted += 'Irrelevant Portions: None identified\n\n';
+                }
+            }
+            
+            // Missing Information
+            Object missingInformationObj = response.get('missing_information');
+            if (missingInformationObj instanceof List<Object>) {
+                List<Object> missingInformation = (List<Object>) missingInformationObj;
+                if (!missingInformation.isEmpty()) {
+                    formatted += 'Missing Information:\n';
+                    formatted += '-------------------\n';
+                    for (Integer i = 0; i < missingInformation.size(); i++) {
+                        formatted += '• ' + String.valueOf(missingInformation[i]) + '\n';
+                    }
+                    formatted += '\n';
+                } else {
+                    formatted += 'Missing Information: None identified\n\n';
                 }
             }
             
