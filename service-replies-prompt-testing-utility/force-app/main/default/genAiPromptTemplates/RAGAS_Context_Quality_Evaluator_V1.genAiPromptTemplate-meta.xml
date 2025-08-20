@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Evaluates the precision and recall of retrieved contextual information, returns the RAGAS context quality score from 0-100</description>
+    <developerName>RAGAS_Context_Quality_Evaluator_V1</developerName>
+    <masterLabel>RAGAS Context Quality Evaluator V1</masterLabel>
+    <templateVersions>
+        <content>You are an expert evaluator assessing the quality of retrieved context for AI responses.
+
+**Search Query**: {!$Input:search_query}
+
+**Retrieved Context**: 
+{!$Input:retrieved_context}
+
+**AI Response**: 
+{!$Input:ai_response}
+
+**Knowledge Base Info**: 
+{!$Input:knowledge_base_info}
+
+Evaluate the quality of the retrieved context. Consider:
+- **Precision**: How much of the retrieved context is relevant to the query?
+- **Recall**: Does the context contain sufficient information to answer the query?
+- **Completeness**: Are there obvious gaps in the retrieved information?
+- **Relevance**: Does the context directly relate to the search query?
+
+Provide a context quality score from 0-100 where:
+- 100 = Perfect precision and recall, highly relevant and complete
+- 75-99 = High quality with minor gaps or irrelevant portions
+- 50-74 = Moderate quality, some relevant info but gaps or noise
+- 25-49 = Low quality, significant gaps or mostly irrelevant content
+- 0-24 = Poor quality, little to no relevant information
+
+Return your assessment as JSON:
+{
+ &quot;context_quality_score&quot;: [numeric score 0-100],
+ &quot;reasoning&quot;: &quot;[detailed explanation of score]&quot;,
+ &quot;precision_assessment&quot;: &quot;[how much retrieved content is relevant]&quot;,
+ &quot;recall_assessment&quot;: &quot;[how well the context covers the query needs]&quot;,
+ &quot;relevant_portions&quot;: [&quot;list of relevant context sections&quot;],
+ &quot;irrelevant_portions&quot;: [&quot;list of irrelevant context sections&quot;],
+ &quot;missing_information&quot;: [&quot;list of information gaps that should have been retrieved&quot;]
+}
+
+</content>
+        <inputs>
+            <apiName>search_query</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>search query</masterLabel>
+            <referenceName>Input:search_query</referenceName>
+            <required>true</required>
+        </inputs>
+        <inputs>
+            <apiName>retrieved_context</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>retrieved context</masterLabel>
+            <referenceName>Input:retrieved_context</referenceName>
+            <required>true</required>
+        </inputs>
+        <inputs>
+            <apiName>ai_response</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>ai response</masterLabel>
+            <referenceName>Input:ai_response</referenceName>
+            <required>true</required>
+        </inputs>
+        <inputs>
+            <apiName>knowledge_base_info</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>knowledge base info</masterLabel>
+            <referenceName>Input:knowledge_base_info</referenceName>
+            <required>true</required>
+        </inputs>
+        <primaryModel>sfdc_ai__DefaultOpenAIGPT4OmniMini</primaryModel>
+        <status>Published</status>
+    </templateVersions>
+    <templateVersions>
+        <content>You are an expert evaluator assessing the quality of retrieved context for AI responses.
+
+**Search Query**: {!$Input:search_query}
+
+**Retrieved Context**: 
+{!$Input:retrieved_context}
+
+**AI Response**: 
+{!$Input:ai_response}
+
+**Knowledge Base Info**: 
+{!$Input:knowledge_base_info}
+
+Evaluate the quality of the retrieved context. Consider:
+- **Precision**: How much of the retrieved context is relevant to the query?
+- **Recall**: Does the context contain sufficient information to answer the query?
+- **Completeness**: Are there obvious gaps in the retrieved information?
+- **Relevance**: Does the context directly relate to the search query?
+
+Provide a context quality score from 0-100 where:
+- 100 = Perfect precision and recall, highly relevant and complete
+- 75-99 = High quality with minor gaps or irrelevant portions
+- 50-74 = Moderate quality, some relevant info but gaps or noise
+- 25-49 = Low quality, significant gaps or mostly irrelevant content
+- 0-24 = Poor quality, little to no relevant information
+
+Return your assessment as JSON:
+{
+ &quot;context_quality_score&quot;: [numeric score 0-100],
+ &quot;reasoning&quot;: &quot;[detailed explanation of score]&quot;,
+ &quot;precision_assessment&quot;: &quot;[how much retrieved content is relevant]&quot;,
+ &quot;recall_assessment&quot;: &quot;[how well the context covers the query needs]&quot;,
+ &quot;relevant_portions&quot;: [&quot;list of relevant context sections&quot;],
+ &quot;irrelevant_portions&quot;: [&quot;list of irrelevant context sections&quot;],
+ &quot;missing_information&quot;: [&quot;list of information gaps that should have been retrieved&quot;]
+}
+
+</content>
+        <inputs>
+            <apiName>search_query</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>search query</masterLabel>
+            <referenceName>Input:search_query</referenceName>
+            <required>true</required>
+        </inputs>
+        <inputs>
+            <apiName>ai_response</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>ai response</masterLabel>
+            <referenceName>Input:ai_response</referenceName>
+            <required>true</required>
+        </inputs>
+        <inputs>
+            <apiName>retrieved_context</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>retrieved context</masterLabel>
+            <referenceName>Input:retrieved_context</referenceName>
+            <required>true</required>
+        </inputs>
+        <inputs>
+            <apiName>knowledge_base_info</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>knowledge base info</masterLabel>
+            <referenceName>Input:knowledge_base_info</referenceName>
+            <required>true</required>
+        </inputs>
+        <primaryModel>sfdc_ai__DefaultGPT5</primaryModel>
+        <status>Published</status>
+    </templateVersions>
+    <type>einstein_gpt__flex</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>
