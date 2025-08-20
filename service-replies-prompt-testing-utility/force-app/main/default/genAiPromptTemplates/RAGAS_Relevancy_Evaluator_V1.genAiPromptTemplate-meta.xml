@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenAiPromptTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Evaluates how well an AI response addresses the original user question, returns the RAGAS relevancy score (0-100)</description>
+    <developerName>RAGAS_Relevancy_Evaluator_V1</developerName>
+    <masterLabel>RAGAS Relevancy Evaluator V1</masterLabel>
+    <templateVersions>
+        <content>You are an expert evaluator assessing how relevant AI responses are to user questions.
+
+**User Question**: {!$Input:user_question}
+
+**Available Context**: {!$Input:available_context}
+
+**AI Response**: {!$Input:ai_response}
+
+Evaluate how well the AI response addresses the user&apos;s question. Consider:
+- Does it directly answer what was asked?
+- Is it specific and actionable for the user&apos;s situation?
+- Does it stay focused on the question without unnecessary tangents?
+- Is the level of detail appropriate for the question?
+
+Provide a relevancy score from 0-100 where:
+- 100 = Perfectly relevant, directly addresses the question
+- 75-99 = Highly relevant with minor tangential content
+- 50-74 = Moderately relevant but includes some off-topic information
+- 25-49 = Somewhat relevant but misses key aspects of the question
+- 0-24 = Not relevant or completely off-topic
+
+Return your assessment as JSON:
+{
+ &quot;relevancy_score&quot;: [numeric score 0-100],
+ &quot;reasoning&quot;: &quot;[detailed explanation of score]&quot;,
+ &quot;relevant_aspects&quot;: [&quot;list of aspects that directly address the question&quot;],
+ &quot;irrelevant_aspects&quot;: [&quot;list of any off-topic or tangential content&quot;],
+ &quot;missing_aspects&quot;: [&quot;list of question aspects not addressed&quot;]
+}
+</content>
+        <inputs>
+            <apiName>user_question</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>user question</masterLabel>
+            <referenceName>Input:user_question</referenceName>
+            <required>true</required>
+        </inputs>
+        <inputs>
+            <apiName>ai_response</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>ai response</masterLabel>
+            <referenceName>Input:ai_response</referenceName>
+            <required>true</required>
+        </inputs>
+        <inputs>
+            <apiName>available_context</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>available context</masterLabel>
+            <referenceName>Input:available_context</referenceName>
+            <required>true</required>
+        </inputs>
+        <primaryModel>sfdc_ai__DefaultOpenAIGPT4OmniMini</primaryModel>
+        <status>Published</status>
+    </templateVersions>
+    <templateVersions>
+        <content>You are an expert evaluator assessing how relevant AI responses are to user questions.
+
+**User Question**: {!$Input:user_question}
+
+**Available Context**: {!$Input:available_context}
+
+**AI Response**: {!$Input:ai_response}
+
+Evaluate how well the AI response addresses the user&apos;s question. Consider:
+- Does it directly answer what was asked?
+- Is it specific and actionable for the user&apos;s situation?
+- Does it stay focused on the question without unnecessary tangents?
+- Is the level of detail appropriate for the question?
+
+Provide a relevancy score from 0-100 where:
+- 100 = Perfectly relevant, directly addresses the question
+- 75-99 = Highly relevant with minor tangential content
+- 50-74 = Moderately relevant but includes some off-topic information
+- 25-49 = Somewhat relevant but misses key aspects of the question
+- 0-24 = Not relevant or completely off-topic
+
+Return your assessment as JSON:
+{
+ &quot;relevancy_score&quot;: [numeric score 0-100],
+ &quot;reasoning&quot;: &quot;[detailed explanation of score]&quot;,
+ &quot;relevant_aspects&quot;: [&quot;list of aspects that directly address the question&quot;],
+ &quot;irrelevant_aspects&quot;: [&quot;list of any off-topic or tangential content&quot;],
+ &quot;missing_aspects&quot;: [&quot;list of question aspects not addressed&quot;]
+}
+</content>
+        <inputs>
+            <apiName>user_question</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>user question</masterLabel>
+            <referenceName>Input:user_question</referenceName>
+            <required>true</required>
+        </inputs>
+        <inputs>
+            <apiName>ai_response</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>ai response</masterLabel>
+            <referenceName>Input:ai_response</referenceName>
+            <required>true</required>
+        </inputs>
+        <inputs>
+            <apiName>available_context</apiName>
+            <definition>primitive://String</definition>
+            <masterLabel>available context</masterLabel>
+            <referenceName>Input:available_context</referenceName>
+            <required>true</required>
+        </inputs>
+        <primaryModel>sfdc_ai__DefaultGPT5</primaryModel>
+        <status>Published</status>
+    </templateVersions>
+    <type>einstein_gpt__flex</type>
+    <visibility>Global</visibility>
+</GenAiPromptTemplate>
