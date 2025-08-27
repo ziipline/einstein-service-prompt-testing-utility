@@ -45,7 +45,7 @@ The Einstein Prompt Testing Utility streamlines the process of evaluating multip
 - ✅ **Contextual Analysis**: Extract search queries and analyze conversation context (Service Replies)
 - ✅ **Grounded Responses**: Generate knowledge-grounded responses when relevant (Service Replies)
 - ✅ **Customer Utterance Parsing**: Automatically identify and process individual customer messages
-- ✅ **Quality Metrics**: RAGAS-based evaluation for faithfulness, relevancy, and context quality assessment with automated batch processing
+- ✅ **Quality Metrics**: Evaluation for faithfulness, relevancy, and context quality assessment with automated batch processing
 - ✅ **Progress Tracking**: Monitor batch processing status and detailed results
 
 ### Technical Features
@@ -191,9 +191,9 @@ Configure the appropriate Einstein Prompt Templates based on your intended test 
 For grounded Service Reply templates, update the RetriverId attribute when adding the 
 ziip__PromptTestingUtility to an App page in App Builder
 
-## 📊 RAGAS Quality Metrics
+## 📊 RAG Quality Metrics
 
-The utility includes comprehensive RAGAS (Retrieval-Augmented Generation Assessment) quality evaluation to score prompt outputs and ensure they are not hallucinating, remain faithful to grounding information, and respond in a context-aware manner.
+The utility includes comprehensive RAG (Retrieval-Augmented Generation Assessment) quality evaluation to score prompt outputs and ensure they are not hallucinating, remain faithful to grounding information, and respond in a context-aware manner.
 
 ### Quality Assessment Features
 
@@ -217,14 +217,14 @@ The utility includes comprehensive RAGAS (Retrieval-Augmented Generation Assessm
    - **Relevancy Template**: Template ID for relevancy evaluation  
    - **Context Quality Template**: Template ID for context quality assessment
 
-#### **RAGAS Prompt Templates**
-The utility includes pre-built RAGAS evaluation templates:
+#### **RAG Evaluation Prompt Templates**
+The utility includes pre-built RAG evaluation templates:
 
 ```
 ├── GenAI Prompt Templates
-│   ├── RAGAS_Faithfulness_Evaluator    # Evaluates response faithfulness to context
-│   ├── RAGAS_Relevancy_Evaluator       # Measures response relevancy to query
-│   └── RAGAS_Context_Quality_Evaluator # Assesses context appropriateness
+│   ├── RAG_Faithfulness_Evaluator    # Evaluates response faithfulness to context
+│   ├── RAG_Relevancy_Evaluator       # Measures response relevancy to query
+│   └── RAG_Context_Quality_Evaluator # Assesses context appropriateness
 ```
 
 **Template Configuration Requirements:**
@@ -236,7 +236,7 @@ The utility includes pre-built RAGAS evaluation templates:
 1. **Primary Testing**: Complete normal prompt testing batch
 2. **Quality Trigger**: System automatically initiates quality assessment if enabled
 3. **Metric Evaluation**: Each prompt test result is evaluated against all three metrics
-4. **Score Storage**: Results stored in dedicated RAGAS score and analysis fields
+4. **Score Storage**: Results stored in dedicated RAG Eval score and analysis fields
 5. **Status Updates**: Quality metrics status tracked independently
 
 ### Understanding Quality Results
@@ -266,12 +266,12 @@ The utility includes pre-built RAGAS evaluation templates:
   - **<0.5**: Poor context quality, insufficient for reliable response generation
 
 #### **Quality Assessment Fields**
-- **RAGAS_Faithfulness_Score__c**: Numerical faithfulness score (0-1)
-- **RAGAS_Faithfulness_Analysis__c**: Detailed textual analysis of faithfulness
-- **RAGAS_Relevancy_Score__c**: Numerical relevancy score (0-1)
-- **RAGAS_Relevancy_Analysis__c**: Detailed textual analysis of relevancy
-- **RAGAS_Context_Quality_Score__c**: Numerical context quality score (0-1)
-- **RAGAS_Context_Quality_Analysis__c**: Detailed textual analysis of context quality
+- **RAG_Faithfulness_Score__c**: Numerical faithfulness score (0-1)
+- **RAG_Faithfulness_Analysis__c**: Detailed textual analysis of faithfulness
+- **RAG_Relevancy_Score__c**: Numerical relevancy score (0-1)
+- **RAG_Relevancy_Analysis__c**: Detailed textual analysis of relevancy
+- **RAG_Context_Quality_Score__c**: Numerical context quality score (0-1)
+- **RAG_Context_Quality_Analysis__c**: Detailed textual analysis of context quality
 - **Quality_Metrics_Status__c**: Processing status (Pending, In Progress, Completed, Failed)
 - **Quality_Assessment_Details__c**: Overall quality assessment summary
 
@@ -305,14 +305,14 @@ Navigate to the **Prompt Testing Utility** tab in your Salesforce org to access 
    - **Service Replies**: Requires both Primary (Contextual) and Secondary (Grounded) templates
    - **Case Summary**: Requires only Primary template
    - **Work Summary**: Requires only Primary template
-3. **Quality Assessment** (Optional): Enable quality assessment and configure RAGAS evaluation templates
+3. **Quality Assessment** (Optional): Enable quality assessment and configure RAG evaluation templates
 
 ### 3. Template Selection
 
 1. **Browse Templates**: View paginated list of available Einstein Prompt Templates
 2. **Filter Templates**: Use search and type filters to find relevant templates
 3. **Select Templates**: Choose appropriate templates for your test type
-4. **Quality Templates**: If quality assessment enabled, select RAGAS evaluation templates
+4. **Quality Templates**: If quality assessment enabled, select RAG evaluation templates
 5. **Continue**: Proceed to data selection
 
 ### 4. Data Selection
