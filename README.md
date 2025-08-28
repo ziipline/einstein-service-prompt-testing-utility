@@ -165,12 +165,6 @@ Create a Named Credential for Connect API access:
    - **Flow**: `Authorization Code`
    - **Scope**: `full refresh_token`
 
-### 2. Configure Remote Site Settings
-
-Ensure the following remote site is allowed:
-- **Remote Site Name**: `Salesforce_API`
-- **Remote Site URL**: `https://yourinstance.salesforce.com`
-
 ## 🔧 Post-Deployment Configuration
 
 After successfully deploying the application, complete the following configuration steps:
