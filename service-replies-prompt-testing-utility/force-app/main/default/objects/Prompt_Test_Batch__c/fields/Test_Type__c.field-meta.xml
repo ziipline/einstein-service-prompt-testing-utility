@@ -3,7 +3,7 @@
     <fullName>Test_Type__c</fullName>
     <description>The type of prompt testing to perform. Service Replies tests Einstein Service Reply suggestions, Case Summary tests case summarization, Work Summary tests conversation summarization.</description>
     <label>Test Type</label>
-    <required>true</required>
+    <required>false</required>
     <trackHistory>true</trackHistory>
     <trackTrending>false</trackTrending>
     <type>Picklist</type>

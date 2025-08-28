@@ -4,7 +4,7 @@ A Salesforce application for testing multiple types of Einstein prompt templates
 
 This utility allows for the systematic evaluation of prompt templates as they are iterativly developed, so that, admins can evaluate  changes against a controlled group of test contexts, in bulk (e.g. a set number of messaging sessions). 
 
-For prompt templates that include Retriveal Augmented Generation (RAG), this utility includes funtionality to evluate the RAG performance using the RAGAS framework. This generates three measures of RAG performance for each prompt that used RAG,
+For prompt templates that include Retriveal Augmented Generation (RAG), this utility includes funtionality to evluate the RAG performance using the RAG framework. This generates three measures of RAG performance for each prompt that used RAG,
 
 Context Quality [0-100] : A measure of the quality of the generated response to the query it is addressing -'does the response address the query'
 Faithfulness [0-100] : A measure of the faithfulness / truthfulness of the response to the retrived grounding - 'a measure of how truthful the response is and if there is hallucination'
@@ -53,7 +53,7 @@ The Einstein Prompt Testing Utility streamlines the process of evaluating multip
 - ✅ **Contextual Analysis**: Extract search queries and analyze conversation context (Service Replies)
 - ✅ **Grounded Responses**: Generate knowledge-grounded responses when relevant (Service Replies)
 - ✅ **Customer Utterance Parsing**: Automatically identify and process individual customer messages
-- ✅ **Quality Metrics**: RAGAS-based evaluation for faithfulness, relevancy, and context quality assessment with automated batch processing
+- ✅ **Quality Metrics**: RAG-based evaluation for faithfulness, relevancy, and context quality assessment with automated batch processing
 - ✅ **Progress Tracking**: Monitor batch processing status and detailed results
 
 ### Technical Features
@@ -88,6 +88,18 @@ The Einstein Prompt Testing Utility streamlines the process of evaluating multip
     - Read access to Case, MessagingSession, and VoiceCall objects
 
 ## 🛠️ Installation
+
+### Pre-Deployment Steps
+
+Before deploying the application, ensure your Salesforce org is properly configured:
+
+#### 1. Enable Einstein in the Org
+1. Navigate to **Setup** → **Einstein** → **Einstein Generative AI** → **Einstein Setup**
+2. Enable Einstein Generative AI features for your organization
+
+#### 2. Enable Service AI Grounding
+1. Navigate to **Setup** → **Feature Settings** → **Service** → **Service Cloud Einstein** → **Service AI Grounding**
+2. Turn on Service AI Grounding functionality
 
 ### 1. Deploy the Application
 
@@ -147,7 +159,7 @@ The following must be configured manually by administrators:
 1. **Named Credential Access**: Grant users access to "Salesforce_Connect_API" Named Credential
 2. **Einstein Licenses**: Ensure users have appropriate Einstein Service Reply licenses
 
-### 2. Configure Named Credential
+### 1. Configure Named Credential
 
 Create a Named Credential for Connect API access:
 
@@ -159,13 +171,85 @@ Create a Named Credential for Connect API access:
    - **Identity Type**: `Named Principal`
    - **Authentication Protocol**: `OAuth 2.0`
    - **Flow**: `Authorization Code`
-   - **Scope**: `api refresh_token`
+   - **Scope**: `full refresh_token`
 
-### 3. Configure Remote Site Settings
+### 2. Configure Remote Site Settings
 
 Ensure the following remote site is allowed:
 - **Remote Site Name**: `Salesforce_API`
 - **Remote Site URL**: `https://yourinstance.salesforce.com`
+
+## 🔧 Post-Deployment Configuration
+
+After successfully deploying the application, complete the following configuration steps:
+
+### 1. Activate RAG Evaluation Prompt Templates
+
+1. Navigate to **Setup** → **Einstein** → **Prompt Templates**
+2. Locate and activate the following RAG evaluation templates:
+   - **RAGAS_Context_Quality_Evaluator_V1**
+   - **RAGAS_Faithfulness_Evaluator_V1** 
+   - **RAGAS_Relevancy_Evaluator_V1**
+3. **Important**: Note the record IDs of these templates for use in the LWC configuration
+
+### 2. Configure the LWC in Prompt Testing Utility Record Page
+
+1. Navigate to **Setup** → **Object Manager** → **Prompt Test Batch** → **Lightning Record Pages**
+2. Edit the **Prompt Test Batch Record Page**
+3. Configure the **ziip_promptTestUtility** Lightning Web Component with:
+   - **Prompt Template IDs**: Include the IDs of the relevant prompt templates being tested
+   - **Retriever Config ID**: Include the ID of the Retriever Config being tested
+
+### 3. Named Credential Setup
+
+Complete the following steps to set up authentication for the utility:
+
+#### Step 1: Create Auth Provider
+1. Navigate to **Setup** → **Auth. Providers**
+2. Create a new Auth Provider:
+   - **Provider Type**: `Salesforce`
+   - **Name**: `SalesforceSelfAuth`
+   - **URL Suffix**: `SalesforceSelfAuth`
+3. **Important**: Note the **Callback URL** provided after saving
+
+#### Step 2: Create External Client App
+1. Navigate to **Setup** → **Apps** → **App Manager**
+2. Create a new **Connected App** named `Prompt Template Test Utility`:
+   - **API Name**: `Prompt_Template_Test_Utility`
+   - **Contact Email**: Your admin email
+   - **Enable OAuth Settings**: ✅ Checked
+   - **Callback URL**: Use the callback URL from Step 1
+   - **Selected OAuth Scopes**: 
+     - `Full access (full)`
+     - `Perform requests on your behalf at any time (refresh_token, offline_access)`
+3. **Important**: Note the **Consumer Key** and **Consumer Secret** after saving
+4. Return to the Auth Provider created in Step 1 and update:
+   - **Consumer Key**: Enter the Consumer Key from the Connected App
+   - **Consumer Secret**: Enter the Consumer Secret from the Connected App
+
+#### Step 3: Create External Credential
+1. Navigate to **Setup** → **Named Credentials** → **External Credentials**
+2. Create a new External Credential:
+   - **Label**: `Prompt_Testing_External_Credential`
+   - **Name**: `Prompt_Testing_External_Credential`
+   - **Authentication Protocol**: `OAuth 2.0`
+   - **Authentication Flow Type**: `Authorization Code`
+   - **Scope**: `full refresh_token offline_access`
+
+#### Step 4: Create Named Credential
+1. Navigate to **Setup** → **Named Credentials** → **Named Credentials**
+2. Create a new Named Credential:
+   - **Label**: `Prompt_Testing_Named_Credential`
+   - **Name**: `Prompt_Testing_Named_Credential`
+   - **URL**: `https://yourinstance.salesforce.com`
+   - **External Credential**: Select the External Credential created in Step 3
+
+### 4. Assign External Credential Principal Access
+
+1. Navigate to **Setup** → **Permission Sets**
+2. Create or edit a permission set to include:
+   - **External Credential Principal Access**: Grant access to the External Credential created above
+3. Assign this permission set to users who will be using the Prompt Testing Utility
 
 ## ⚙️ Configuration
 
@@ -199,9 +283,9 @@ Configure the appropriate Einstein Prompt Templates based on your intended test 
 For grounded Service Reply templates, update the RetriverId attribute when adding the 
 ziip__PromptTestingUtility to an App page in App Builder
 
-## 📊 RAGAS Quality Metrics
+## 📊 RAG Quality Metrics
 
-The utility includes comprehensive RAGAS (Retrieval-Augmented Generation Assessment) quality evaluation to score prompt outputs and ensure they are not hallucinating, remain faithful to grounding information, and respond in a context-aware manner.
+The utility includes comprehensive RAG (Retrieval-Augmented Generation) quality evaluation to score prompt outputs and ensure they are not hallucinating, remain faithful to grounding information, and respond in a context-aware manner.
 
 ### Quality Assessment Features
 
@@ -225,14 +309,14 @@ The utility includes comprehensive RAGAS (Retrieval-Augmented Generation Assessm
    - **Relevancy Template**: Template ID for relevancy evaluation  
    - **Context Quality Template**: Template ID for context quality assessment
 
-#### **RAGAS Prompt Templates**
-The utility includes pre-built RAGAS evaluation templates:
+#### **RAG Prompt Templates**
+The utility includes pre-built RAG evaluation templates:
 
 ```
 ├── GenAI Prompt Templates
-│   ├── RAGAS_Faithfulness_Evaluator    # Evaluates response faithfulness to context
-│   ├── RAGAS_Relevancy_Evaluator       # Measures response relevancy to query
-│   └── RAGAS_Context_Quality_Evaluator # Assesses context appropriateness
+│   ├── RAG_Faithfulness_Evaluator    # Evaluates response faithfulness to context
+│   ├── RAG_Relevancy_Evaluator       # Measures response relevancy to query
+│   └── RAG_Context_Quality_Evaluator # Assesses context appropriateness
 ```
 
 **Template Configuration Requirements:**
@@ -244,7 +328,7 @@ The utility includes pre-built RAGAS evaluation templates:
 1. **Primary Testing**: Complete normal prompt testing batch
 2. **Quality Trigger**: System automatically initiates quality assessment if enabled
 3. **Metric Evaluation**: Each prompt test result is evaluated against all three metrics
-4. **Score Storage**: Results stored in dedicated RAGAS score and analysis fields
+4. **Score Storage**: Results stored in dedicated RAG score and analysis fields
 5. **Status Updates**: Quality metrics status tracked independently
 
 ### Understanding Quality Results
@@ -274,12 +358,12 @@ The utility includes pre-built RAGAS evaluation templates:
   - **<0.5**: Poor context quality, insufficient for reliable response generation
 
 #### **Quality Assessment Fields**
-- **RAGAS_Faithfulness_Score__c**: Numerical faithfulness score (0-1)
-- **RAGAS_Faithfulness_Analysis__c**: Detailed textual analysis of faithfulness
-- **RAGAS_Relevancy_Score__c**: Numerical relevancy score (0-1)
-- **RAGAS_Relevancy_Analysis__c**: Detailed textual analysis of relevancy
-- **RAGAS_Context_Quality_Score__c**: Numerical context quality score (0-1)
-- **RAGAS_Context_Quality_Analysis__c**: Detailed textual analysis of context quality
+- **RAG_Faithfulness_Score__c**: Numerical faithfulness score (0-1)
+- **RAG_Faithfulness_Analysis__c**: Detailed textual analysis of faithfulness
+- **RAG_Relevancy_Score__c**: Numerical relevancy score (0-1)
+- **RAG_Relevancy_Analysis__c**: Detailed textual analysis of relevancy
+- **RAG_Context_Quality_Score__c**: Numerical context quality score (0-1)
+- **RAG_Context_Quality_Analysis__c**: Detailed textual analysis of context quality
 - **Quality_Metrics_Status__c**: Processing status (Pending, In Progress, Completed, Failed)
 - **Quality_Assessment_Details__c**: Overall quality assessment summary
 
@@ -313,14 +397,14 @@ Navigate to the **Prompt Testing Utility** tab in your Salesforce org to access 
    - **Service Replies**: Requires both Primary (Contextual) and Secondary (Grounded) templates
    - **Case Summary**: Requires only Primary template
    - **Work Summary**: Requires only Primary template
-3. **Quality Assessment** (Optional): Enable quality assessment and configure RAGAS evaluation templates
+3. **Quality Assessment** (Optional): Enable quality assessment and configure RAG evaluation templates
 
 ### 3. Template Selection
 
 1. **Browse Templates**: View paginated list of available Einstein Prompt Templates
 2. **Filter Templates**: Use search and type filters to find relevant templates
 3. **Select Templates**: Choose appropriate templates for your test type
-4. **Quality Templates**: If quality assessment enabled, select RAGAS evaluation templates
+4. **Quality Templates**: If quality assessment enabled, select RAG evaluation templates
 5. **Continue**: Proceed to data selection
 
 ### 4. Data Selection
