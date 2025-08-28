@@ -89,6 +89,18 @@ The Einstein Prompt Testing Utility streamlines the process of evaluating multip
 
 ## 🛠️ Installation
 
+### Pre-Deployment Steps
+
+Before deploying the application, ensure your Salesforce org is properly configured:
+
+#### 1. Enable Einstein in the Org
+1. Navigate to **Setup** → **Einstein** → **Einstein Generative AI** → **Einstein Setup**
+2. Enable Einstein Generative AI features for your organization
+
+#### 2. Enable Service AI Grounding
+1. Navigate to **Setup** → **Feature Settings** → **Service** → **Service Cloud Einstein** → **Service AI Grounding**
+2. Turn on Service AI Grounding functionality
+
 ### 1. Deploy the Application
 
 Clone the repository and deploy using Salesforce DX:
@@ -159,13 +171,85 @@ Create a Named Credential for Connect API access:
    - **Identity Type**: `Named Principal`
    - **Authentication Protocol**: `OAuth 2.0`
    - **Flow**: `Authorization Code`
-   - **Scope**: `api refresh_token`
+   - **Scope**: `full refresh_token`
 
 ### 2. Configure Remote Site Settings
 
 Ensure the following remote site is allowed:
 - **Remote Site Name**: `Salesforce_API`
 - **Remote Site URL**: `https://yourinstance.salesforce.com`
+
+## 🔧 Post-Deployment Configuration
+
+After successfully deploying the application, complete the following configuration steps:
+
+### 1. Activate RAG Evaluation Prompt Templates
+
+1. Navigate to **Setup** → **Einstein** → **Prompt Templates**
+2. Locate and activate the following RAG evaluation templates:
+   - **RAGAS_Context_Quality_Evaluator_V1**
+   - **RAGAS_Faithfulness_Evaluator_V1** 
+   - **RAGAS_Relevancy_Evaluator_V1**
+3. **Important**: Note the record IDs of these templates for use in the LWC configuration
+
+### 2. Configure the LWC in Prompt Testing Utility Record Page
+
+1. Navigate to **Setup** → **Object Manager** → **Prompt Test Batch** → **Lightning Record Pages**
+2. Edit the **Prompt Test Batch Record Page**
+3. Configure the **ziip_promptTestUtility** Lightning Web Component with:
+   - **Prompt Template IDs**: Include the IDs of the relevant prompt templates being tested
+   - **Retriever Config ID**: Include the ID of the Retriever Config being tested
+
+### 3. Named Credential Setup
+
+Complete the following steps to set up authentication for the utility:
+
+#### Step 1: Create Auth Provider
+1. Navigate to **Setup** → **Auth. Providers**
+2. Create a new Auth Provider:
+   - **Provider Type**: `Salesforce`
+   - **Name**: `SalesforceSelfAuth`
+   - **URL Suffix**: `SalesforceSelfAuth`
+3. **Important**: Note the **Callback URL** provided after saving
+
+#### Step 2: Create External Client App
+1. Navigate to **Setup** → **Apps** → **App Manager**
+2. Create a new **Connected App** named `Prompt Template Test Utility`:
+   - **API Name**: `Prompt_Template_Test_Utility`
+   - **Contact Email**: Your admin email
+   - **Enable OAuth Settings**: ✅ Checked
+   - **Callback URL**: Use the callback URL from Step 1
+   - **Selected OAuth Scopes**: 
+     - `Full access (full)`
+     - `Perform requests on your behalf at any time (refresh_token, offline_access)`
+3. **Important**: Note the **Consumer Key** and **Consumer Secret** after saving
+4. Return to the Auth Provider created in Step 1 and update:
+   - **Consumer Key**: Enter the Consumer Key from the Connected App
+   - **Consumer Secret**: Enter the Consumer Secret from the Connected App
+
+#### Step 3: Create External Credential
+1. Navigate to **Setup** → **Named Credentials** → **External Credentials**
+2. Create a new External Credential:
+   - **Label**: `Prompt_Testing_External_Credential`
+   - **Name**: `Prompt_Testing_External_Credential`
+   - **Authentication Protocol**: `OAuth 2.0`
+   - **Authentication Flow Type**: `Authorization Code`
+   - **Scope**: `full refresh_token offline_access`
+
+#### Step 4: Create Named Credential
+1. Navigate to **Setup** → **Named Credentials** → **Named Credentials**
+2. Create a new Named Credential:
+   - **Label**: `Prompt_Testing_Named_Credential`
+   - **Name**: `Prompt_Testing_Named_Credential`
+   - **URL**: `https://yourinstance.salesforce.com`
+   - **External Credential**: Select the External Credential created in Step 3
+
+### 4. Assign External Credential Principal Access
+
+1. Navigate to **Setup** → **Permission Sets**
+2. Create or edit a permission set to include:
+   - **External Credential Principal Access**: Grant access to the External Credential created above
+3. Assign this permission set to users who will be using the Prompt Testing Utility
 
 ## ⚙️ Configuration
 
