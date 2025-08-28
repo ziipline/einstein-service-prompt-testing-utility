@@ -154,6 +154,11 @@
         <field>Prompt_Test__c.Voice_Call__c</field>
         <readable>true</readable>
     </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Prompt_Test__c.Prompt_Test_Batch__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     
     <!-- Field Permissions for Prompt_Test_Batch__c -->
     <fieldPermissions>
