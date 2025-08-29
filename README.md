@@ -2,13 +2,18 @@
 
 A Salesforce application for testing multiple types of Einstein prompt templates against real organizational data. This utility enables systematic / bulk evaluation of AI-generated responses by processing historical data through various template types including Service Replies, Case Summaries, and Work Summaries.
 
+<img width="1633" height="700" alt="Screenshot 2025-08-27 at 11 11 53" src="https://github.com/user-attachments/assets/7a4e8221-7666-4f7c-a9fd-0cd49cc4227b" />
+
 This utility allows for the systematic evaluation of prompt templates as they are iterativly developed, so that, admins can evaluate  changes against a controlled group of test contexts, in bulk (e.g. a set number of messaging sessions). 
 
-For prompt templates that include Retriveal Augmented Generation (RAG), this utility includes funtionality to evluate the RAG performance using the RAG framework. This generates three measures of RAG performance for each prompt that used RAG,
+For prompt templates that include Retriveal Augmented Generation (RAG), this utility includes funtionality to evluate the RAG performance using an 'LLM-as-a-judge' approach. This generates three measures of RAG performance for each prompt that includes retrieval,
 
-Context Quality [0-100] : A measure of the quality of the generated response to the query it is addressing -'does the response address the query'
-Faithfulness [0-100] : A measure of the faithfulness / truthfulness of the response to the retrived grounding - 'a measure of how truthful the response is and if there is hallucination'
-Relevancy [0-100] : A measure of the relevance of the retrived grounding to the original query - 'how relevant in the retrived knowledge for providing an answer to the query'
+<img width="1540" height="774" alt="Screenshot 2025-08-27 at 11 41 45" src="https://github.com/user-attachments/assets/e2d2009e-b395-4fc6-9c51-caceda4379c0" />
+
+
+* Context Quality [0-100] : A measure of the quality of the generated response to the query it is addressing -'does the response address the query'
+* Faithfulness [0-100] : A measure of the faithfulness / truthfulness of the response to the retrived grounding - 'a measure of how truthful the response is and if there is hallucination'
+* Relevancy [0-100] : A measure of the relevance of the retrived grounding to the original query - 'how relevant in the retrived knowledge for providing an answer to the query'
 
 ![Salesforce](https://img.shields.io/badge/Salesforce-00D4FF?style=flat-square&logo=salesforce&logoColor=white)
 ![Einstein AI](https://img.shields.io/badge/Einstein-AI-orange?style=flat-square)
