@@ -1,6 +1,14 @@
 # Einstein Prompt Testing Utility
 
-A comprehensive Salesforce application for testing multiple types of Einstein prompt templates against real organizational data. This utility enables systematic evaluation of AI-powered responses by processing historical data through various template types including Service Replies, Case Summaries, and Work Summaries.
+A Salesforce application for testing multiple types of Einstein prompt templates against real organizational data. This utility enables systematic / bulk evaluation of AI-generated responses by processing historical data through various template types including Service Replies, Case Summaries, and Work Summaries.
+
+This utility allows for the systematic evaluation of prompt templates as they are iterativly developed, so that, admins can evaluate  changes against a controlled group of test contexts, in bulk (e.g. a set number of messaging sessions). 
+
+For prompt templates that include Retriveal Augmented Generation (RAG), this utility includes funtionality to evluate the RAG performance using the RAG framework. This generates three measures of RAG performance for each prompt that used RAG,
+
+Context Quality [0-100] : A measure of the quality of the generated response to the query it is addressing -'does the response address the query'
+Faithfulness [0-100] : A measure of the faithfulness / truthfulness of the response to the retrived grounding - 'a measure of how truthful the response is and if there is hallucination'
+Relevancy [0-100] : A measure of the relevance of the retrived grounding to the original query - 'how relevant in the retrived knowledge for providing an answer to the query'
 
 ![Salesforce](https://img.shields.io/badge/Salesforce-00D4FF?style=flat-square&logo=salesforce&logoColor=white)
 ![Einstein AI](https://img.shields.io/badge/Einstein-AI-orange?style=flat-square)
@@ -12,12 +20,12 @@ A comprehensive Salesforce application for testing multiple types of Einstein pr
 This overview shows how Service Replies for Chat operates in a live environment, followed by how this testing utility can then be used to preview Service Replies in
 order to test the underlying prompts that are used - to aid with development of the prompts that are used 
 
-<div>
-    <a href="https://www.loom.com/share/ce7d2ec9bfa34adc9eb7e3bda1e04980">
-      <p>Bulk Prompt Testing and Evaluation Utility - Watch Video</p>
+  <div>
+    <a href="https://www.loom.com/share/0c525ad41cdc42d09e9d591f1bf67034">
+      <p>Prompt Testing Utility | Overview of Functionality - Watch Video</p>
     </a>
-    <a href="https://www.loom.com/share/ce7d2ec9bfa34adc9eb7e3bda1e04980">
-      <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/ce7d2ec9bfa34adc9eb7e3bda1e04980-cd1953a1e1a53d1f-full.jpg">
+    <a href="https://www.loom.com/share/0c525ad41cdc42d09e9d591f1bf67034">
+      <img style="max-width:600px;" src="https://cdn.loom.com/sessions/thumbnails/0c525ad41cdc42d09e9d591f1bf67034-dbe20b8cea669196-full-play.gif">
     </a>
   </div>
 
@@ -45,7 +53,7 @@ The Einstein Prompt Testing Utility streamlines the process of evaluating multip
 - ✅ **Contextual Analysis**: Extract search queries and analyze conversation context (Service Replies)
 - ✅ **Grounded Responses**: Generate knowledge-grounded responses when relevant (Service Replies)
 - ✅ **Customer Utterance Parsing**: Automatically identify and process individual customer messages
-- ✅ **Quality Metrics**: Evaluation for faithfulness, relevancy, and context quality assessment with automated batch processing
+- ✅ **Quality Metrics**: RAG-based evaluation for faithfulness, relevancy, and context quality assessment with automated batch processing
 - ✅ **Progress Tracking**: Monitor batch processing status and detailed results
 
 ### Technical Features
@@ -87,7 +95,7 @@ Before deploying the application, ensure your Salesforce org is properly configu
 
 #### 1. Enable Einstein in the Org
 1. Navigate to **Setup** → **Einstein** → **Einstein Generative AI** → **Einstein Setup**
-2. Enable Einstein Generative AI features for your organization
+2. Enable Einstein Generative AI features for your organisation
 
 #### 2. Enable Service AI Grounding
 1. Navigate to **Setup** → **Feature Settings** → **Service** → **Service Cloud Einstein** → **Service AI Grounding**
@@ -164,6 +172,12 @@ Create a Named Credential for Connect API access:
    - **Authentication Protocol**: `OAuth 2.0`
    - **Flow**: `Authorization Code`
    - **Scope**: `full refresh_token`
+
+### 2. Configure Remote Site Settings
+
+Ensure the following remote site is allowed:
+- **Remote Site Name**: `Salesforce_API`
+- **Remote Site URL**: `https://yourinstance.salesforce.com`
 
 ## 🔧 Post-Deployment Configuration
 
@@ -271,7 +285,7 @@ ziip__PromptTestingUtility to an App page in App Builder
 
 ## 📊 RAG Quality Metrics
 
-The utility includes comprehensive RAG (Retrieval-Augmented Generation Assessment) quality evaluation to score prompt outputs and ensure they are not hallucinating, remain faithful to grounding information, and respond in a context-aware manner.
+The utility includes comprehensive RAG (Retrieval-Augmented Generation) quality evaluation to score prompt outputs and ensure they are not hallucinating, remain faithful to grounding information, and respond in a context-aware manner.
 
 ### Quality Assessment Features
 
@@ -283,7 +297,7 @@ The utility includes comprehensive RAG (Retrieval-Augmented Generation Assessmen
 #### **Automated Quality Processing**
 - **Batch Integration**: Quality assessment automatically runs after primary prompt testing completes
 - **Template-Based Evaluation**: Uses dedicated Einstein Prompt Templates for each metric type
-- **Structured Analysis**: Provides both numerical scores (0-1) and detailed textual analysis
+- **Structured Analysis**: Provides both numerical scores (0-100) and detailed textual analysis
 - **Status Tracking**: Monitor quality assessment progress separately from primary testing
 
 ### Quality Assessment Configuration
@@ -295,7 +309,7 @@ The utility includes comprehensive RAG (Retrieval-Augmented Generation Assessmen
    - **Relevancy Template**: Template ID for relevancy evaluation  
    - **Context Quality Template**: Template ID for context quality assessment
 
-#### **RAG Evaluation Prompt Templates**
+#### **RAG Prompt Templates**
 The utility includes pre-built RAG evaluation templates:
 
 ```
@@ -307,48 +321,57 @@ The utility includes pre-built RAG evaluation templates:
 
 **Template Configuration Requirements:**
 - Each template should accept standard inputs (question, answer, context)
-- Expected output format: `{"score": 0.85, "analysis": "Detailed explanation..."}`
-- Score range: 0.0 (poor) to 1.0 (excellent)
+- Expected output format: `{"score": 85, "analysis": "Detailed explanation..."}`
+- Score range: 0-100 (poor to excellent)
+
+**Customization for Organisation-Specific Criteria:**
+The RAG evaluation prompt templates can be customized to include your organisation's specific evaluation criteria. While the utility provides standard RAGAS-based evaluation templates, you can modify these templates to incorporate:
+- Industry-specific quality standards
+- Organisation-specific evaluation rubrics
+- Custom scoring criteria aligned with your business requirements
+- Specialised analysis frameworks relevant to your use case
+
+To customize the evaluation templates, edit the prompt content in **Setup** → **Einstein** → **Prompt Templates** to reflect your organisation's unique evaluation needs while maintaining the required input/output format structure.
 
 #### **Quality Assessment Workflow**
 1. **Primary Testing**: Complete normal prompt testing batch
 2. **Quality Trigger**: System automatically initiates quality assessment if enabled
 3. **Metric Evaluation**: Each prompt test result is evaluated against all three metrics
-4. **Score Storage**: Results stored in dedicated RAG Eval score and analysis fields
+4. **Score Storage**: Results stored in dedicated RAG score and analysis fields
 5. **Status Updates**: Quality metrics status tracked independently
 
 ### Understanding Quality Results
 
 #### **Faithfulness Scoring**
-- **Score Range**: 0.0 - 1.0 (higher is better)
+- **Score Range**: 0-100 (higher is better)
 - **Interpretation**:
-  - **0.9-1.0**: Highly faithful to provided context
-  - **0.7-0.8**: Generally faithful with minor deviations
-  - **0.5-0.6**: Moderate faithfulness, some hallucination risk
-  - **<0.5**: Poor faithfulness, significant hallucination concerns
+  - **90-100**: Highly faithful to provided context
+  - **70-89**: Generally faithful with minor deviations
+  - **50-69**: Moderate faithfulness, some hallucination risk
+  - **<50**: Poor faithfulness, significant hallucination concerns
 
 #### **Relevancy Scoring**  
-- **Score Range**: 0.0 - 1.0 (higher is better)
+- **Score Range**: 0-100 (higher is better)
 - **Interpretation**:
-  - **0.9-1.0**: Highly relevant to user query
-  - **0.7-0.8**: Generally relevant with good context understanding
-  - **0.5-0.6**: Moderately relevant, some off-topic elements
-  - **<0.5**: Poor relevancy, response doesn't address query well
+  - **90-100**: Highly relevant to user query
+  - **70-89**: Generally relevant with good context understanding
+  - **50-69**: Moderately relevant, some off-topic elements
+  - **<50**: Poor relevancy, response doesn't address query well
 
 #### **Context Quality Scoring**
-- **Score Range**: 0.0 - 1.0 (higher is better)  
+- **Score Range**: 0-100 (higher is better)  
 - **Interpretation**:
-  - **0.9-1.0**: Excellent context, highly appropriate for response generation
-  - **0.7-0.8**: Good context quality with minor gaps
-  - **0.5-0.6**: Adequate context but could be improved
-  - **<0.5**: Poor context quality, insufficient for reliable response generation
+  - **90-100**: Excellent context, highly appropriate for response generation
+  - **70-89**: Good context quality with minor gaps
+  - **50-69**: Adequate context but could be improved
+  - **<50**: Poor context quality, insufficient for reliable response generation
 
 #### **Quality Assessment Fields**
-- **RAG_Faithfulness_Score__c**: Numerical faithfulness score (0-1)
+- **RAG_Faithfulness_Score__c**: Numerical faithfulness score (0-100)
 - **RAG_Faithfulness_Analysis__c**: Detailed textual analysis of faithfulness
-- **RAG_Relevancy_Score__c**: Numerical relevancy score (0-1)
+- **RAG_Relevancy_Score__c**: Numerical relevancy score (0-100)
 - **RAG_Relevancy_Analysis__c**: Detailed textual analysis of relevancy
-- **RAG_Context_Quality_Score__c**: Numerical context quality score (0-1)
+- **RAG_Context_Quality_Score__c**: Numerical context quality score (0-100)
 - **RAG_Context_Quality_Analysis__c**: Detailed textual analysis of context quality
 - **Quality_Metrics_Status__c**: Processing status (Pending, In Progress, Completed, Failed)
 - **Quality_Assessment_Details__c**: Overall quality assessment summary
@@ -427,18 +450,18 @@ Results vary by test type:
 
 #### **Service Replies Results**
 - **Customer Utterance**: The specific customer message being tested
-- **Primary Result**: Contextual analysis including search queries and context
+- **Result**: Contextual analysis including search queries and context
 - **Secondary Result**: Knowledge-grounded response (if applicable)
 - **Processing Status**: Success, failure, or skipped status
 
 #### **Case Summary Results**
 - **Case Reference**: The case being summarized
-- **Primary Result**: AI-generated case summary
+- **Result**: AI-generated case summary
 - **Processing Status**: Success or failure status
 
 #### **Work Summary Results**
 - **Work Reference**: The messaging session or voice call being summarized
-- **Primary Result**: AI-generated work summary
+- **Result**: AI-generated work summary
 - **Processing Status**: Success or failure status
 
 ## 🏗️ Technical Architecture
