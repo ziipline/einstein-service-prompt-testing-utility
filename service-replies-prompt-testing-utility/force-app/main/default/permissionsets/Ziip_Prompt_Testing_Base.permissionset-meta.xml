@@ -41,11 +41,6 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
-        <field>Prompt_Test__c.Primary_Result__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
         <field>Prompt_Test__c.Quality_Assessment_Details__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -112,11 +107,6 @@
     <fieldPermissions>
         <editable>false</editable>
         <field>Prompt_Test__c.Secondary_Resolved_Prompt__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>false</editable>
-        <field>Prompt_Test__c.Secondary_Result__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
