@@ -95,7 +95,7 @@ Before deploying the application, ensure your Salesforce org is properly configu
 
 #### 1. Enable Einstein in the Org
 1. Navigate to **Setup** → **Einstein** → **Einstein Generative AI** → **Einstein Setup**
-2. Enable Einstein Generative AI features for your organization
+2. Enable Einstein Generative AI features for your organisation
 
 #### 2. Enable Service AI Grounding
 1. Navigate to **Setup** → **Feature Settings** → **Service** → **Service Cloud Einstein** → **Service AI Grounding**
@@ -297,7 +297,7 @@ The utility includes comprehensive RAG (Retrieval-Augmented Generation) quality 
 #### **Automated Quality Processing**
 - **Batch Integration**: Quality assessment automatically runs after primary prompt testing completes
 - **Template-Based Evaluation**: Uses dedicated Einstein Prompt Templates for each metric type
-- **Structured Analysis**: Provides both numerical scores (0-1) and detailed textual analysis
+- **Structured Analysis**: Provides both numerical scores (0-100) and detailed textual analysis
 - **Status Tracking**: Monitor quality assessment progress separately from primary testing
 
 ### Quality Assessment Configuration
@@ -321,8 +321,17 @@ The utility includes pre-built RAG evaluation templates:
 
 **Template Configuration Requirements:**
 - Each template should accept standard inputs (question, answer, context)
-- Expected output format: `{"score": 0.85, "analysis": "Detailed explanation..."}`
-- Score range: 0.0 (poor) to 1.0 (excellent)
+- Expected output format: `{"score": 85, "analysis": "Detailed explanation..."}`
+- Score range: 0-100 (poor to excellent)
+
+**Customization for Organisation-Specific Criteria:**
+The RAG evaluation prompt templates can be customized to include your organisation's specific evaluation criteria. While the utility provides standard RAGAS-based evaluation templates, you can modify these templates to incorporate:
+- Industry-specific quality standards
+- Organisation-specific evaluation rubrics
+- Custom scoring criteria aligned with your business requirements
+- Specialised analysis frameworks relevant to your use case
+
+To customize the evaluation templates, edit the prompt content in **Setup** → **Einstein** → **Prompt Templates** to reflect your organisation's unique evaluation needs while maintaining the required input/output format structure.
 
 #### **Quality Assessment Workflow**
 1. **Primary Testing**: Complete normal prompt testing batch
@@ -334,35 +343,35 @@ The utility includes pre-built RAG evaluation templates:
 ### Understanding Quality Results
 
 #### **Faithfulness Scoring**
-- **Score Range**: 0.0 - 1.0 (higher is better)
+- **Score Range**: 0-100 (higher is better)
 - **Interpretation**:
-  - **0.9-1.0**: Highly faithful to provided context
-  - **0.7-0.8**: Generally faithful with minor deviations
-  - **0.5-0.6**: Moderate faithfulness, some hallucination risk
-  - **<0.5**: Poor faithfulness, significant hallucination concerns
+  - **90-100**: Highly faithful to provided context
+  - **70-89**: Generally faithful with minor deviations
+  - **50-69**: Moderate faithfulness, some hallucination risk
+  - **<50**: Poor faithfulness, significant hallucination concerns
 
 #### **Relevancy Scoring**  
-- **Score Range**: 0.0 - 1.0 (higher is better)
+- **Score Range**: 0-100 (higher is better)
 - **Interpretation**:
-  - **0.9-1.0**: Highly relevant to user query
-  - **0.7-0.8**: Generally relevant with good context understanding
-  - **0.5-0.6**: Moderately relevant, some off-topic elements
-  - **<0.5**: Poor relevancy, response doesn't address query well
+  - **90-100**: Highly relevant to user query
+  - **70-89**: Generally relevant with good context understanding
+  - **50-69**: Moderately relevant, some off-topic elements
+  - **<50**: Poor relevancy, response doesn't address query well
 
 #### **Context Quality Scoring**
-- **Score Range**: 0.0 - 1.0 (higher is better)  
+- **Score Range**: 0-100 (higher is better)  
 - **Interpretation**:
-  - **0.9-1.0**: Excellent context, highly appropriate for response generation
-  - **0.7-0.8**: Good context quality with minor gaps
-  - **0.5-0.6**: Adequate context but could be improved
-  - **<0.5**: Poor context quality, insufficient for reliable response generation
+  - **90-100**: Excellent context, highly appropriate for response generation
+  - **70-89**: Good context quality with minor gaps
+  - **50-69**: Adequate context but could be improved
+  - **<50**: Poor context quality, insufficient for reliable response generation
 
 #### **Quality Assessment Fields**
-- **RAG_Faithfulness_Score__c**: Numerical faithfulness score (0-1)
+- **RAG_Faithfulness_Score__c**: Numerical faithfulness score (0-100)
 - **RAG_Faithfulness_Analysis__c**: Detailed textual analysis of faithfulness
-- **RAG_Relevancy_Score__c**: Numerical relevancy score (0-1)
+- **RAG_Relevancy_Score__c**: Numerical relevancy score (0-100)
 - **RAG_Relevancy_Analysis__c**: Detailed textual analysis of relevancy
-- **RAG_Context_Quality_Score__c**: Numerical context quality score (0-1)
+- **RAG_Context_Quality_Score__c**: Numerical context quality score (0-100)
 - **RAG_Context_Quality_Analysis__c**: Detailed textual analysis of context quality
 - **Quality_Metrics_Status__c**: Processing status (Pending, In Progress, Completed, Failed)
 - **Quality_Assessment_Details__c**: Overall quality assessment summary
@@ -441,18 +450,18 @@ Results vary by test type:
 
 #### **Service Replies Results**
 - **Customer Utterance**: The specific customer message being tested
-- **Primary Result**: Contextual analysis including search queries and context
+- **Result**: Contextual analysis including search queries and context
 - **Secondary Result**: Knowledge-grounded response (if applicable)
 - **Processing Status**: Success, failure, or skipped status
 
 #### **Case Summary Results**
 - **Case Reference**: The case being summarized
-- **Primary Result**: AI-generated case summary
+- **Result**: AI-generated case summary
 - **Processing Status**: Success or failure status
 
 #### **Work Summary Results**
 - **Work Reference**: The messaging session or voice call being summarized
-- **Primary Result**: AI-generated work summary
+- **Result**: AI-generated work summary
 - **Processing Status**: Success or failure status
 
 ## 🏗️ Technical Architecture
