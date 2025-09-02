@@ -511,6 +511,16 @@
                     <name>uiBehavior</name>
                     <value>none</value>
                 </fieldInstanceProperties>
+                <fieldItem>Record.Template_Name__c</fieldItem>
+                <identifier>RecordTemplate_Name_cField</identifier>
+            </fieldInstance>
+        </itemInstances>
+        <itemInstances>
+            <fieldInstance>
+                <fieldInstanceProperties>
+                    <name>uiBehavior</name>
+                    <value>none</value>
+                </fieldInstanceProperties>
                 <fieldItem>Record.Uses_Knowledge_Grounding__c</fieldItem>
                 <identifier>RecordUses_Knowledge_Grounding_cField</identifier>
             </fieldInstance>
