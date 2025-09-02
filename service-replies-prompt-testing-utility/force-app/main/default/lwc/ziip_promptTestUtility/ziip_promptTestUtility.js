@@ -658,7 +658,9 @@ export default class Ziip_promptTestUtility extends LightningElement {
             relevancyTemplateId: this.relevancyTemplateId || null,
             contextQualityTemplateId: this.contextQualityTemplateId || null,
             primaryUsesKnowledgeGrounding: this.primaryUsesKnowledgeGrounding,
-            secondaryUsesKnowledgeGrounding: this.secondaryUsesKnowledgeGrounding
+            secondaryUsesKnowledgeGrounding: this.secondaryUsesKnowledgeGrounding,
+            primaryTemplateName: this.selectedPrimaryTemplate.Name,
+            secondaryTemplateName: this.selectedSecondaryTemplate?.Name || null
         };
 
         console.log('=== JS DEBUG: UI Knowledge Grounding Values ===');
