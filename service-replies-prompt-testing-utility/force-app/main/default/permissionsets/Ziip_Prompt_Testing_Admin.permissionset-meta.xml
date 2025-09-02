@@ -115,7 +115,7 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>false</editable>
+        <editable>true</editable>
         <field>Prompt_Test__c.Template_Name__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -197,12 +197,12 @@
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>false</editable>
+        <editable>true</editable>
         <field>Prompt_Test_Batch__c.Contextual_Template_Name__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>false</editable>
+        <editable>true</editable>
         <field>Prompt_Test_Batch__c.Grounded_Template_Name__c</field>
         <readable>true</readable>
     </fieldPermissions>
